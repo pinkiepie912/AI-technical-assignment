@@ -14,7 +14,31 @@ services:
     environment:
       TZ: Asia/Seoul
     depends_on:
-      - postgres
+      - web 
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web
+    environment:
+      - PORT=8000
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+    command: uvicorn src.server:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - redis
+      - postgres 
+
+  redis:
+    image: redis:7.0.12
+    container_name: redis
+    ports:
+      - "6379:6379"
 
   # pgvector가 포함된 PostgreSQL 이미지
   postgres:

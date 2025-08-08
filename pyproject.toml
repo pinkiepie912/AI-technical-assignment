@@ -16,13 +16,13 @@ alembic = "^1.16.4"
 asyncpg = "^0.30.0"
 dependency-injector = "^4.48.1"
 pydantic-settings = "^2.10.1"
+uvicorn = "^0.35.0"
 
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
 pytest-cov = "^6.2.1"
 pytest-mock = "^3.14.1"
-watchdog = "^6.0.0"
 black = "^25.1.0"
 
 [build-system]

@@ -14,9 +14,9 @@ class DatabaseConfig(BaseSettings):
     WRITE_ENGINE: str = Field(default="postgresql+asyncpg")
     WRITE_URL: str = Field(default="localhost:5432")
     WRITE_PORT: int = Field(default=5432)
+    WRITE_NAME: str = Field(default="dev")
     WRITE_USER: str = Field(default="dev")
     WRITE_PASSWORD: str = Field(default="dev")
-    WRITE_DB_NAME: str = Field(default="dev")
 
     READ_ENGINE: str = Field(default="postgresql+asyncpg")
     READ_URL: str = Field(default="localhost:5432")

@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 from enrichment.domain.vos.metrics import MonthlyMetrics
 
 __all__ = ["CompanyMetricsSnapshot", "CompanyMetricSnapshotCreateParams"]
 
 
-@dataclass(frozen=True)
-class CompanyMetricSnapshotCreateParams:
+class CompanyMetricSnapshotCreateParams(BaseModel):
     company_id: UUID
     reference_date: date
     metrics: MonthlyMetrics
 
+    model_config = ConfigDict(frozen=True)
 
-@dataclass
-class CompanyMetricsSnapshot:
+
+class CompanyMetricsSnapshot(BaseModel):
     company_id: UUID
     reference_date: date
     metrics: MonthlyMetrics

@@ -1,5 +1,3 @@
-from dataclasses import asdict
-
 from db.db import WriteSessionManager
 from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
 from enrichment.infrastructure.orm.company import Company as CompanyOrm
@@ -19,7 +17,11 @@ class CompanyRepository:
                 id=aggregate.company.id,
                 name=aggregate.company.name,
                 name_en=aggregate.company.name_en,
-                biz_categories=aggregate.company.industry.split(", ") if aggregate.company.industry and aggregate.company.industry.strip() else [],
+                biz_categories=(
+                    aggregate.company.industry.split(", ")
+                    if aggregate.company.industry and aggregate.company.industry.strip()
+                    else []
+                ),
                 total_investment=aggregate.company.total_investment,
                 founded_date=aggregate.company.founded_date,
                 ipo_date=aggregate.company.ipo_date,
@@ -39,6 +41,6 @@ class CompanyRepository:
                 snapshot_orm = CompanyMetricsSnapshotOrm(
                     company_id=snapshot.company_id,
                     reference_date=snapshot.reference_date,
-                    metrics=asdict(snapshot.metrics),
+                    metrics=snapshot.metrics.model_dump(mode="json"),
                 )
                 session.add(snapshot_orm)

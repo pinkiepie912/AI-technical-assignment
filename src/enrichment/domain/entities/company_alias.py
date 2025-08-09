@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 __all__ = ["CompanyAlias", "CompanyAliasCreateParams"]
 
 
-@dataclass
-class CompanyAliasCreateParams:
+class CompanyAliasCreateParams(BaseModel):
     company_id: UUID
     alias: str
     alias_type: str
 
+    model_config = ConfigDict(frozen=True)
 
-@dataclass
-class CompanyAlias:
+
+class CompanyAlias(BaseModel):
     company_id: UUID
     alias: str
     alias_type: str
@@ -24,5 +25,7 @@ class CompanyAlias:
     @staticmethod
     def of(params: CompanyAliasCreateParams) -> CompanyAlias:
         return CompanyAlias(
-            **asdict(params),
+            company_id=params.company_id,
+            alias=params.alias,
+            alias_type=params.alias_type,
         )

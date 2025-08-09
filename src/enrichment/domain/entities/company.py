@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import date
 from typing import List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from .company_alias import CompanyAlias, CompanyAliasCreateParams
 from .company_metrics_snapshot import (
@@ -14,8 +15,7 @@ from .company_metrics_snapshot import (
 __all__ = ["Company", "CompanyCreateParams"]
 
 
-@dataclass
-class CompanyCreateParams:
+class CompanyCreateParams(BaseModel):
     name: str
     name_en: Optional[str] = None
     industry: Optional[str] = None
@@ -28,14 +28,15 @@ class CompanyCreateParams:
     total_investment: Optional[int] = None
     origin_file_path: str = ""
 
-    alias_params: List[CompanyAliasCreateParams] = field(default_factory=list)
-    snapshot_params: List[CompanyMetricSnapshotCreateParams] = field(
+    alias_params: List[CompanyAliasCreateParams] = Field(default_factory=list)
+    snapshot_params: List[CompanyMetricSnapshotCreateParams] = Field(
         default_factory=list
     )
 
+    model_config = ConfigDict(frozen=True)
 
-@dataclass
-class Company:
+
+class Company(BaseModel):
     id: UUID
     name: str
     name_en: Optional[str]

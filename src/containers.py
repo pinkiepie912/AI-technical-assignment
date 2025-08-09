@@ -10,7 +10,7 @@ class Container(containers.DeclarativeContainer):
     config = providers.Configuration()
 
     # SqlAlchemy
-    _write_db_engine = providers.Singleton(
+    _write_db_engine = providers.Resource(
         create_async_engine,
         url=providers.Callable(
             "{engine}://{user}:{password}@{url}:{port}/{name}".format,
@@ -30,7 +30,7 @@ class Container(containers.DeclarativeContainer):
         async_sessionmaker, bind=_write_db_engine, class_=AsyncSession
     )
 
-    _read_db_engine = providers.Singleton(
+    _read_db_engine = providers.Resource(
         create_async_engine,
         url=providers.Callable(
             "{engine}://{user}:{password}@{url}:{port}/{name}".format,

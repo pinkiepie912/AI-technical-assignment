@@ -63,7 +63,9 @@ def create_app() -> FastAPI:
     async def lifespan(app: FastAPI):
         print("FastAPI app initialized")
         yield
-        container.dispose()
+        container.shutdown_resources()
+        container.unwire()
+
         print("FastAPI app shutdown complete")
 
     app = FastAPI(

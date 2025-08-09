@@ -2,6 +2,11 @@ from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from db.db import ReadSessionManager, WriteSessionManager
+from enrichment.application.services.company_info_writer import CompanyInfoWriter
+from enrichment.infrastructure.readers.forest_of_hyuksin_reader import (
+    ForestOfHyuksinReader,
+)
+from enrichment.infrastructure.repositories.company_repository import CompanyRepository
 
 __all__ = ["Container"]
 
@@ -58,4 +63,31 @@ class Container(containers.DeclarativeContainer):
     write_session_manager = providers.Factory(
         WriteSessionManager,
         session_maker=_write_db_session_maker,
+    )
+
+    # Enrichment
+    # # Repositories
+    company_repository = providers.Factory(
+        CompanyRepository, session_manager=write_session_manager
+    )
+
+    # # Readers
+    forest_hyucksin_reader = providers.Factory(
+        ForestOfHyuksinReader,
+    )
+
+    # # Dynamic config for runtime values
+    reader_source_key = providers.Dependency()
+
+    # # Reader selector using config
+    reader_selector = providers.Selector(
+        reader_source_key,
+        forestofhyucksin=forest_hyucksin_reader,
+    )
+
+    # # services
+    company_info_writer = providers.Factory(
+        CompanyInfoWriter,
+        reader=reader_selector,
+        repository=company_repository,
     )

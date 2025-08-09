@@ -31,7 +31,7 @@ from db.model import Base
 project_root = Path(__file__).resolve().parents[1]
 src_path = project_root / "src"
 
-for p in src_path.glob("*/models/*.py"):
+for p in src_path.glob("**/orm/*.py"):
     if p.name != "__init__.py":
         module_name = (
             p.relative_to(src_path).with_suffix("").as_posix().replace("/", ".")

@@ -56,5 +56,5 @@ class Company(Base):
         "CompanyAlias", back_populates="company"
     )
     snapshots: Mapped[List["CompanyMetricsSnapshot"]] = relationship(
-        "CompanySnapshot", back_populates="company"
+        "CompanyMetricsSnapshot", back_populates="company"
     )

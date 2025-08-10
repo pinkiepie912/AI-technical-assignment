@@ -70,9 +70,7 @@ class ForestOfHyuksinReader(JSONDataReader):
             company_id, data
         )
 
-        company = self._create_company(
-            company_id, data, company_aliases, company_metrics_snapshots, path
-        )
+        company = self._create_company(company_id, data, path)
 
         return CompanyAggregate.of(
             company=company,
@@ -84,8 +82,6 @@ class ForestOfHyuksinReader(JSONDataReader):
         self,
         company_id: UUID,
         data: ForestOfHyuksinCompanyData,
-        company_aliases: List[CompanyAlias],
-        company_metrics_snapshots: List[CompanyMetricsSnapshot],
         path: Path,
     ) -> Company:
         params = CompanyCreateParams(
@@ -115,22 +111,6 @@ class ForestOfHyuksinReader(JSONDataReader):
                 else None
             ),
             origin_file_path=str(path.absolute()),
-            alias_params=[
-                CompanyAliasCreateParams(
-                    company_id=company_id,
-                    alias=alias.alias,
-                    alias_type=alias.alias_type,
-                )
-                for alias in company_aliases
-            ],
-            snapshot_params=[
-                CompanyMetricSnapshotCreateParams(
-                    company_id=snapshot.company_id,
-                    reference_date=snapshot.reference_date,
-                    metrics=snapshot.metrics,
-                )
-                for snapshot in company_metrics_snapshots
-            ],
         )
         company = Company.of(params)
         company.id = company_id

@@ -34,8 +34,6 @@ def sample_company(sample_company_id) -> Company:
         ipo_date=None,
         total_investment=1000000000,
         origin_file_path="/test/path/file.json",
-        company_aliases=[],
-        company_snapshot=[],
     )
 
 
@@ -98,8 +96,6 @@ def minimal_company(sample_company_id) -> Company:
         ipo_date=None,
         total_investment=None,
         origin_file_path="/minimal/path.json",
-        company_aliases=[],
-        company_snapshot=[],
     )
 
 

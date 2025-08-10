@@ -46,7 +46,7 @@ class TestForestOfHyuksinReader:
             company = result.company
             assert company.name == "테스트코프 주식회사"
             assert company.name_en == "TestCorp Inc."
-            assert company.investment_total == 5000000000
+            assert company.total_investment == 5000000000
             assert company.stage == "Series A"
             assert company.founded_date.year == 2020
             assert company.founded_date.month == 3

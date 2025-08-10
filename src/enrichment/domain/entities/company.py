@@ -6,12 +6,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .company_alias import CompanyAlias, CompanyAliasCreateParams
-from .company_metrics_snapshot import (
-    CompanyMetricSnapshotCreateParams,
-    CompanyMetricsSnapshot,
-)
-
 __all__ = ["Company", "CompanyCreateParams"]
 
 
@@ -28,11 +22,6 @@ class CompanyCreateParams(BaseModel):
     ipo_date: Optional[date] = None
     total_investment: Optional[int] = None
     origin_file_path: str = ""
-
-    alias_params: List[CompanyAliasCreateParams] = Field(default_factory=list)
-    snapshot_params: List[CompanyMetricSnapshotCreateParams] = Field(
-        default_factory=list
-    )
 
     model_config = ConfigDict(frozen=True)
 
@@ -51,8 +40,6 @@ class Company(BaseModel):
     ipo_date: Optional[date]
     total_investment: Optional[int]
     origin_file_path: str
-    company_aliases: List[CompanyAlias]
-    company_snapshot: List[CompanyMetricsSnapshot]
 
     @staticmethod
     def of(params: CompanyCreateParams) -> Company:
@@ -70,10 +57,6 @@ class Company(BaseModel):
             ipo_date=params.ipo_date,
             total_investment=params.total_investment,
             origin_file_path=params.origin_file_path,
-            company_aliases=[CompanyAlias.of(p) for p in params.alias_params],
-            company_snapshot=[
-                CompanyMetricsSnapshot.of(p) for p in params.snapshot_params
-            ],
         )
 
     def get_company_age_years(self) -> Optional[int]:

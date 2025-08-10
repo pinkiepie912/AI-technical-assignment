@@ -28,7 +28,7 @@ class TestCompanyRepository:
     @pytest.fixture
     def repository(self, mock_session_manager: MagicMock) -> CompanyRepository:
         """Create CompanyRepository with mocked session manager"""
-        return CompanyRepository(mock_session_manager)
+        return CompanyRepository(mock_session_manager, mock_session_manager)
 
     @pytest.mark.asyncio
     async def test_save_complete_aggregate(
@@ -127,8 +127,6 @@ class TestCompanyRepository:
             ipo_date=None,
             total_investment=None,
             origin_file_path="/minimal/path.json",
-            company_aliases=[],
-            company_snapshot=[],
         )
 
         minimal_aggregate = CompanyAggregate(
@@ -199,8 +197,6 @@ class TestCompanyRepository:
             ipo_date=None,
             total_investment=2000000000,
             origin_file_path="/multi/industry.json",
-            company_aliases=[],
-            company_snapshot=[],
         )
 
         aggregate = CompanyAggregate(
@@ -266,8 +262,6 @@ class TestCompanyRepository:
             ipo_date=None,
             total_investment=100000000,
             origin_file_path="/empty/industry.json",
-            company_aliases=[],
-            company_snapshot=[],
         )
 
         aggregate = CompanyAggregate(
@@ -312,8 +306,6 @@ class TestCompanyRepository:
             ipo_date=None,
             total_investment=5000000000,
             origin_file_path="/tags/company.json",
-            company_aliases=[],
-            company_snapshot=[],
         )
 
         aggregate = CompanyAggregate(
@@ -360,8 +352,6 @@ class TestCompanyRepository:
             ipo_date=None,
             total_investment=100000000,
             origin_file_path="/no/tags.json",
-            company_aliases=[],
-            company_snapshot=[],
         )
 
         aggregate = CompanyAggregate(
@@ -391,9 +381,10 @@ class TestCompanyRepository:
         mock_session_manager = MagicMock(spec=WriteSessionManager)
 
         # Act
-        repository = CompanyRepository(mock_session_manager)
+        repository = CompanyRepository(mock_session_manager, mock_session_manager)
 
         # Assert
-        assert repository.session_manager is mock_session_manager
+        assert repository.write_session_manager is mock_session_manager
+        assert repository.read_session_manager is mock_session_manager
         assert isinstance(repository, CompanyRepository)
 

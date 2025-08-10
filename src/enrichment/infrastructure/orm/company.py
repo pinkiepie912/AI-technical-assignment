@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, List
 from uuid import UUID
 
-from sqlalchemy import ARRAY, BigInteger, Date, DateTime, String, text
+from sqlalchemy import ARRAY, BigInteger, Date, DateTime, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.model import Base
@@ -21,6 +21,10 @@ class Company(Base):
     __tablename__ = "companies"
 
     id: Mapped[UUID] = mapped_column(primary_key=True)
+
+    external_id: Mapped[str] = mapped_column(
+        String(16), unique=True, nullable=False, index=True
+    )
 
     name: Mapped[str] = mapped_column(String(64), index=True)
 
@@ -47,6 +51,8 @@ class Company(Base):
     )
 
     founded_date: Mapped[date] = mapped_column(Date)
+
+    employee_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     ipo_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 

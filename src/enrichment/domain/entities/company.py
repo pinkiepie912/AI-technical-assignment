@@ -10,11 +10,12 @@ __all__ = ["Company", "CompanyCreateParams"]
 
 
 class CompanyCreateParams(BaseModel):
+    external_id: str
     name: str
     name_en: Optional[str] = None
     industry: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
-    employee_count: Optional[int] = None
+    employee_count: int
     investment_total: Optional[int] = None
     stage: Optional[str] = None
     business_description: Optional[str] = None
@@ -28,6 +29,7 @@ class CompanyCreateParams(BaseModel):
 
 class Company(BaseModel):
     id: UUID
+    external_id: str
     name: str
     name_en: Optional[str]
     industry: List[str] = Field(default_factory=list)
@@ -45,6 +47,7 @@ class Company(BaseModel):
     def of(params: CompanyCreateParams) -> Company:
         return Company(
             id=UUID(int=0),  # Default UUID
+            external_id=params.external_id,
             name=params.name,
             name_en=params.name_en,
             industry=params.industry,

@@ -85,11 +85,12 @@ class ForestOfHyuksinReader(JSONDataReader):
         path: Path,
     ) -> Company:
         params = CompanyCreateParams(
+            external_id=data.base_company_info.data.seedCorp.id,
             name=data.base_company_info.data.seedCorp.corpNameKr,
             name_en=data.base_company_info.data.seedCorp.corpNameEn or None,
             industry=[biz.bizNameKr for biz in data.base_company_info.data.seedCorpBiz],
             tags=[tag.tagNameKr for tag in data.base_company_info.data.seedCorpTag],
-            employee_count=data.base_company_info.data.seedCorp.emplWholeVal,
+            employee_count=data.base_company_info.data.seedCorp.emplWholeVal or 0,
             total_investment=(
                 data.investment.totalInvestmentAmount if data.investment else None
             ),

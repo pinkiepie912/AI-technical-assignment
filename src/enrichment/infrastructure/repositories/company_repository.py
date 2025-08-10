@@ -15,6 +15,9 @@ from enrichment.domain.entities.company import Company
 from enrichment.domain.entities.company_alias import CompanyAlias
 from enrichment.domain.entities.company_metrics_snapshot import CompanyMetricsSnapshot
 from enrichment.domain.vos.metrics import MonthlyMetrics
+from enrichment.infrastructure.exceptions.repository_exception import (
+    DuplicatedCompanyError,
+)
 from enrichment.infrastructure.orm.company import Company as CompanyOrm
 from enrichment.infrastructure.orm.company_alias import CompanyAlias as CompanyAliasOrm
 from enrichment.infrastructure.orm.company_snapshot import (
@@ -34,8 +37,16 @@ class CompanyRepository:
 
     async def save(self, aggregate: CompanyAggregate) -> None:
         async with self.write_session_manager as session:
+            stmt = select(CompanyOrm).where(
+                CompanyOrm.external_id == aggregate.company.external_id
+            )
+            existing_company = (await session.execute(stmt)).scalar_one_or_none()
+            if existing_company:
+                raise DuplicatedCompanyError()
+
             company_orm = CompanyOrm(
                 id=aggregate.company.id,
+                external_id=aggregate.company.external_id,
                 name=aggregate.company.name,
                 name_en=aggregate.company.name_en,
                 biz_categories=aggregate.company.industry,
@@ -45,6 +56,7 @@ class CompanyRepository:
                 total_investment=aggregate.company.total_investment,
                 founded_date=aggregate.company.founded_date,
                 ipo_date=aggregate.company.ipo_date,
+                employee_count=aggregate.company.employee_count,
                 origin_file_path=aggregate.company.origin_file_path,
             )
             session.add(company_orm)
@@ -203,12 +215,13 @@ class CompanyRepository:
     def _create_company_from(self, orm: CompanyOrm) -> Company:
         return Company(
             id=orm.id,
+            external_id=orm.external_id,
             name=orm.name,
             name_en=orm.name_en or "",
             industry=orm.biz_categories or [],
             tags=orm.biz_tags or [],
             founded_date=orm.founded_date,
-            employee_count=None,
+            employee_count=orm.employee_count,
             investment_total=orm.total_investment,
             stage=orm.stage or "",
             business_description=orm.biz_description or "",

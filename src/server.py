@@ -1,5 +1,6 @@
 import glob
 import importlib
+import logging
 import os
 from contextlib import asynccontextmanager
 from typing import List
@@ -10,11 +11,13 @@ from pydantic import BaseModel
 from config.config import Config
 from containers import Container
 
+logger = logging.getLogger(__name__)
+
 
 def load_controllers(base_path="src"):
     controllers = []
-    pattern = os.path.join(base_path, "*", "controllers", "*.py")
-    for controller_file in glob.glob(pattern):
+    pattern = os.path.join(base_path, "**", "controllers", "*.py")
+    for controller_file in glob.glob(pattern, recursive=True):
         if os.path.basename(controller_file) == "__init__.py":
             continue
         module_path = (
@@ -23,6 +26,7 @@ def load_controllers(base_path="src"):
             .replace(os.path.sep, ".")
         )
         controllers.append(module_path)
+        logger.info(f"Found controller: {controller_file} -> {module_path}")
     return controllers
 
 
@@ -37,16 +41,16 @@ def register_routers(app: FastAPI, controller_modules: List[str]):
                 router = getattr(module, "router")
                 app.include_router(router)
                 registered_routers.append(module_path)
-                print(f"Router registered: {module_path}")
+                logger.info(f"Router registered: {module_path}")
             else:
-                print(f"No router found in: {module_path}")
+                logger.warning(f"No router found in: {module_path}")
 
         except ImportError as e:
-            print(f"Failed to import controller: {module_path} - {e}")
+            logger.error(f"Failed to import controller: {module_path} - {e}")
         except Exception as e:
-            print(f"Error registering router from {module_path}: {e}")
+            logger.error(f"Error registering router from {module_path}: {e}")
 
-    print(f"Total routers registered: {len(registered_routers)}")
+    logger.info(f"Total routers registered: {len(registered_routers)}")
     return registered_routers
 
 
@@ -57,16 +61,17 @@ def create_app() -> FastAPI:
     controller_modules = load_controllers()
 
     container.config.from_pydantic(config)
+
     container.wire(modules=controller_modules)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        print("FastAPI app initialized")
+        logger.info("FastAPI app initialized")
         yield
         container.shutdown_resources()
         container.unwire()
 
-        print("FastAPI app shutdown complete")
+        logger.info("FastAPI app shutdown complete")
 
     app = FastAPI(
         lifespan=lifespan,
@@ -78,7 +83,7 @@ def create_app() -> FastAPI:
 
     register_routers(app, controller_modules)
 
-    print("FastAPI app startup complete")
+    logger.info("FastAPI app startup complete")
     return app
 
 

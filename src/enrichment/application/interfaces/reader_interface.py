@@ -4,7 +4,7 @@ from typing import Union
 
 from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
 
-from .exceptions import ReaderFileNotFoundError
+from ..exceptions.reader_exception import ReaderFileNotFoundError
 
 
 class JSONDataReader(ABC):

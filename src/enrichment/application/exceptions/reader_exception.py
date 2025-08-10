@@ -30,9 +30,3 @@ class ReaderEncodingError(ReaderError):
     def __init__(self, file_path: str, encoding: str, details: str):
         message = f"Encoding error ({encoding}) in {file_path}: {details}"
         super().__init__(message, file_path)
-
-
-class ReaderAccessError(ReaderError):
-    def __init__(self, file_path: str, details: str):
-        message = f"Access denied for {file_path}: {details}"
-        super().__init__(message, file_path)

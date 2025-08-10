@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from enrichment.infrastructure.readers.exceptions import (
+from enrichment.application.exceptions.reader_exception import (
     ReaderEncodingError,
     ReaderFileNotFoundError,
     ReaderInvalidFormatError,

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from enrichment.application.dtos.file_process import FileProcessResult
-from enrichment.infrastructure.readers.interfaces import JSONDataReader
+from enrichment.application.interfaces.reader_interface import JSONDataReader
 from enrichment.infrastructure.repositories.company_repository import CompanyRepository
 
 

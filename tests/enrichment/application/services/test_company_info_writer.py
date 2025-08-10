@@ -4,15 +4,15 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from enrichment.application.dtos.file_process import FileProcessResult
-from enrichment.application.services.company_info_writer import CompanyInfoWriter
-from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
-from enrichment.infrastructure.readers.exceptions import (
+from enrichment.application.exceptions.reader_exception import (
     ReaderEncodingError,
     ReaderFileNotFoundError,
     ReaderInvalidFormatError,
     ReaderValidationError,
 )
-from enrichment.infrastructure.readers.interfaces import JSONDataReader
+from enrichment.application.interfaces.reader_interface import JSONDataReader
+from enrichment.application.services.company_info_writer import CompanyInfoWriter
+from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
 from enrichment.infrastructure.repositories.company_repository import CompanyRepository
 
 
@@ -312,4 +312,3 @@ class TestCompanyInfoWriter:
         assert isinstance(result.success, bool)
         assert result.company_id is not None  # Should have UUID
         assert result.message is None  # Should be None for success case
-

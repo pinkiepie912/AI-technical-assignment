@@ -18,7 +18,8 @@ __all__ = ["Company", "CompanyCreateParams"]
 class CompanyCreateParams(BaseModel):
     name: str
     name_en: Optional[str] = None
-    industry: Optional[str] = None
+    industry: List[str] = Field(default_factory=list)
+    tags: List[str] = Field(default_factory=list)
     employee_count: Optional[int] = None
     investment_total: Optional[int] = None
     stage: Optional[str] = None
@@ -40,7 +41,8 @@ class Company(BaseModel):
     id: UUID
     name: str
     name_en: Optional[str]
-    industry: Optional[str]
+    industry: List[str] = Field(default_factory=list)
+    tags: List[str] = Field(default_factory=list)
     founded_date: Optional[date]
     employee_count: Optional[int]
     investment_total: Optional[int]
@@ -59,6 +61,7 @@ class Company(BaseModel):
             name=params.name,
             name_en=params.name_en,
             industry=params.industry,
+            tags=params.tags,
             founded_date=params.founded_date,
             employee_count=params.employee_count,
             investment_total=params.investment_total,

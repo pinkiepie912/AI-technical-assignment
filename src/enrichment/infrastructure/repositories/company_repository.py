@@ -17,11 +17,10 @@ class CompanyRepository:
                 id=aggregate.company.id,
                 name=aggregate.company.name,
                 name_en=aggregate.company.name_en,
-                biz_categories=(
-                    aggregate.company.industry.split(", ")
-                    if aggregate.company.industry and aggregate.company.industry.strip()
-                    else []
-                ),
+                biz_categories=aggregate.company.industry,
+                biz_tags=aggregate.company.tags,
+                biz_description=aggregate.company.business_description,
+                stage=aggregate.company.stage,
                 total_investment=aggregate.company.total_investment,
                 founded_date=aggregate.company.founded_date,
                 ipo_date=aggregate.company.ipo_date,

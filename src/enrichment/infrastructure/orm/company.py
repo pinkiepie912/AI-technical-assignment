@@ -36,6 +36,12 @@ class Company(Base):
         ARRAY(String), default=list, server_default=text("'{}'")
     )
 
+    biz_description: Mapped[str] = mapped_column(
+        String(255), default="", server_default=""
+    )
+
+    stage: Mapped[str] = mapped_column(String(32), default="", server_default="")
+
     total_investment: Mapped[int] = mapped_column(
         BigInteger, default=0, server_default="0"
     )
@@ -55,6 +61,7 @@ class Company(Base):
     aliases: Mapped[List["CompanyAlias"]] = relationship(
         "CompanyAlias", back_populates="company"
     )
+
     snapshots: Mapped[List["CompanyMetricsSnapshot"]] = relationship(
         "CompanyMetricsSnapshot", back_populates="company"
     )

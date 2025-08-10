@@ -117,7 +117,8 @@ class TestCompanyRepository:
             id=company_id,
             name="미니멀 회사",
             name_en=None,
-            industry=None,
+            industry=[],
+            tags=[],
             founded_date=None,
             employee_count=None,
             investment_total=None,
@@ -188,7 +189,8 @@ class TestCompanyRepository:
             id=company_id,
             name="다업종 회사",
             name_en="Multi Industry Co",
-            industry="IT, 소프트웨어, 인공지능, 빅데이터",
+            industry=["IT", "소프트웨어", "인공지능", "빅데이터"],
+            tags=["tech", "AI"],
             founded_date=date(2020, 1, 1),
             employee_count=100,
             investment_total=2000000000,
@@ -254,7 +256,8 @@ class TestCompanyRepository:
             id=company_id,
             name="업종 없는 회사",
             name_en="No Industry Co",
-            industry="",  # Empty string
+            industry=[],  # Empty list
+            tags=[],
             founded_date=date(2020, 1, 1),
             employee_count=10,
             investment_total=100000000,
@@ -287,6 +290,100 @@ class TestCompanyRepository:
         company_orm = company_add_calls[0][0][0]
         # Empty string should result in empty list, not [""]
         assert company_orm.biz_categories == []
+
+    @pytest.mark.asyncio
+    async def test_save_with_tags(
+        self, repository: CompanyRepository, mock_session_manager: MagicMock
+    ):
+        """Test saving a company with tags field"""
+        # Arrange
+        company_id = uuid4()
+        company = Company(
+            id=company_id,
+            name="태그가 있는 회사",
+            name_en="Tagged Company",
+            industry=["IT", "소프트웨어"],
+            tags=["스타트업", "AI", "혁신기업", "빅데이터"],
+            founded_date=date(2021, 5, 15),
+            employee_count=200,
+            investment_total=5000000000,
+            stage="Series C",
+            business_description="다양한 태그를 가진 기업",
+            ipo_date=None,
+            total_investment=5000000000,
+            origin_file_path="/tags/company.json",
+            company_aliases=[],
+            company_snapshot=[],
+        )
+
+        aggregate = CompanyAggregate(
+            company=company, company_aliases=[], company_metrics_snapshots=[]
+        )
+
+        mock_session = mock_session_manager.__aenter__.return_value
+
+        # Act
+        await repository.save(aggregate)
+
+        # Assert
+        company_add_calls = [
+            call
+            for call in mock_session.add.call_args_list
+            if isinstance(call[0][0], CompanyOrm)
+        ]
+        assert len(company_add_calls) == 1
+
+        company_orm = company_add_calls[0][0][0]
+        # Verify industry is correctly mapped to biz_categories
+        assert company_orm.biz_categories == ["IT", "소프트웨어"]
+        # Note: tags field would need to be handled by the ORM mapping
+        # This test verifies the Company entity supports tags properly
+
+    @pytest.mark.asyncio
+    async def test_save_empty_tags_handling(
+        self, repository: CompanyRepository, mock_session_manager: MagicMock
+    ):
+        """Test handling of empty tags field"""
+        # Arrange
+        company_id = uuid4()
+        company = Company(
+            id=company_id,
+            name="태그 없는 회사",
+            name_en="No Tags Co",
+            industry=["IT"],
+            tags=[],  # Empty tags list
+            founded_date=date(2020, 1, 1),
+            employee_count=10,
+            investment_total=100000000,
+            stage="Seed",
+            business_description="태그가 없는 회사",
+            ipo_date=None,
+            total_investment=100000000,
+            origin_file_path="/no/tags.json",
+            company_aliases=[],
+            company_snapshot=[],
+        )
+
+        aggregate = CompanyAggregate(
+            company=company, company_aliases=[], company_metrics_snapshots=[]
+        )
+
+        mock_session = mock_session_manager.__aenter__.return_value
+
+        # Act
+        await repository.save(aggregate)
+
+        # Assert
+        company_add_calls = [
+            call
+            for call in mock_session.add.call_args_list
+            if isinstance(call[0][0], CompanyOrm)
+        ]
+        assert len(company_add_calls) == 1
+
+        company_orm = company_add_calls[0][0][0]
+        assert company_orm.biz_categories == ["IT"]
+        # Tags should be handled appropriately - empty list should be fine
 
     def test_constructor(self):
         """Test CompanyRepository constructor"""

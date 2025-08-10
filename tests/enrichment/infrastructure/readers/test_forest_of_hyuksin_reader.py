@@ -287,7 +287,7 @@ class TestForestOfHyuksinReader:
             # Assert - Verify Korean text is properly preserved in CompanyAggregate
             company = result.company
             assert company.name == "테스트코프 주식회사"
-            assert company.industry == "인공지능, 데이터 처리"  # From seedCorpBiz
+            assert company.industry == ["인공지능", "데이터 처리"]  # From seedCorpBiz
             assert (
                 company.business_description
                 == "데이터 처리 솔루션 전문 AI 기술 선도 기업"
@@ -330,7 +330,7 @@ class TestForestOfHyuksinReader:
             company = result.company
 
             # Test industry field combines business categories
-            assert company.industry == "인공지능, 데이터 처리"
+            assert company.industry == ["인공지능", "데이터 처리"]
 
             # Test aliases include product names
             aliases = [alias.alias for alias in result.company_aliases]
@@ -424,6 +424,8 @@ class TestForestOfHyuksinReader:
             assert isinstance(company.investment_total, (int, type(None)))
             assert isinstance(company.founded_date, (date, type(None)))
             assert isinstance(company.ipo_date, (date, type(None)))
+            assert isinstance(company.industry, list)
+            assert isinstance(company.tags, list)
 
             # Test metrics data types
             for snapshot in result.company_metrics_snapshots:
@@ -449,5 +451,58 @@ class TestForestOfHyuksinReader:
                 for org in snapshot.metrics.organizations:
                     assert isinstance(org.people_count, int)
                     assert isinstance(org.growth_rate, float)
+        finally:
+            test_file.unlink()
+
+    def test_tags_field_handling(
+        self,
+        reader: ForestOfHyuksinReader,
+        complete_forest_data: Dict[str, Any],
+        temp_json_file,
+    ):
+        """Test that tags field is properly handled in Company entity"""
+        # Arrange
+        test_file = temp_json_file(complete_forest_data)
+
+        try:
+            # Act
+            result = reader.read(test_file)
+
+            # Assert - Test tags field
+            company = result.company
+            assert hasattr(company, "tags")
+            assert isinstance(company.tags, list)
+            
+            # Tags should be present and contain expected data
+            # Based on the test data, tags should be extracted from appropriate sources
+            assert company.tags == ["인공지능", "빅데이터"]
+            
+            # Test that tags are properly typed
+            for tag in company.tags:
+                assert isinstance(tag, str)
+
+        finally:
+            test_file.unlink()
+
+    def test_empty_tags_handling(
+        self,
+        reader: ForestOfHyuksinReader,
+        minimal_forest_data: Dict[str, Any],
+        temp_json_file,
+    ):
+        """Test handling of empty/None tags in minimal data"""
+        # Arrange
+        test_file = temp_json_file(minimal_forest_data)
+
+        try:
+            # Act
+            result = reader.read(test_file)
+
+            # Assert - Test empty tags field
+            company = result.company
+            assert hasattr(company, "tags")
+            assert isinstance(company.tags, list)
+            assert company.tags == []  # Should default to empty list
+
         finally:
             test_file.unlink()

@@ -49,7 +49,7 @@ class Company(BaseModel):
     @staticmethod
     def of(params: CompanyCreateParams) -> Company:
         return Company(
-            id=UUID(),  # 기본 UUID (실제로는 별도 할당)
+            id=UUID(int=0),  # 기본 UUID (실제로는 별도 할당)
             external_id=params.external_id,
             name=params.name,
             name_en=params.name_en,

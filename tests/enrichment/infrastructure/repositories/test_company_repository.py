@@ -21,8 +21,17 @@ class TestCompanyRepository:
         """Mock WriteSessionManager for testing"""
         session_manager = MagicMock(spec=WriteSessionManager)
         mock_session = MagicMock()
-        session_manager.__aenter__.return_value = mock_session
-        session_manager.__aexit__.return_value = None
+        
+        # Mock the query execution chain
+        mock_execute_result = MagicMock()
+        mock_execute_result.scalar_one_or_none = MagicMock(return_value=None)
+        
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        mock_session.add = MagicMock()
+        
+        session_manager.__aenter__ = AsyncMock(return_value=mock_session)
+        session_manager.__aexit__ = AsyncMock(return_value=None)
+        
         return session_manager
 
     @pytest.fixture
@@ -38,9 +47,6 @@ class TestCompanyRepository:
         sample_company_aggregate: CompanyAggregate,
     ):
         """Test saving a complete CompanyAggregate"""
-        # Arrange
-        mock_session = mock_session_manager.__aenter__.return_value
-
         # Act
         await repository.save(sample_company_aggregate)
 
@@ -48,6 +54,9 @@ class TestCompanyRepository:
         # Verify session manager was used
         mock_session_manager.__aenter__.assert_called_once()
         mock_session_manager.__aexit__.assert_called_once()
+        
+        # Get the mock session to verify calls
+        mock_session = await mock_session_manager.__aenter__()
 
         # Verify company ORM object was created and added
         company_add_calls = [
@@ -115,13 +124,13 @@ class TestCompanyRepository:
         company_id = uuid4()
         minimal_company = Company(
             id=company_id,
+            external_id="MIN001",
             name="미니멀 회사",
             name_en=None,
             industry=[],
             tags=[],
             founded_date=None,
             employee_count=None,
-            investment_total=None,
             stage=None,
             business_description=None,
             ipo_date=None,
@@ -133,8 +142,6 @@ class TestCompanyRepository:
             company=minimal_company, company_aliases=[], company_metrics_snapshots=[]
         )
 
-        mock_session = mock_session_manager.__aenter__.return_value
-
         # Act
         await repository.save(minimal_aggregate)
 
@@ -142,6 +149,9 @@ class TestCompanyRepository:
         # Verify session manager was used
         mock_session_manager.__aenter__.assert_called_once()
         mock_session_manager.__aexit__.assert_called_once()
+        
+        # Get the mock session to verify calls
+        mock_session = await mock_session_manager.__aenter__()
 
         # Verify company was added with None/empty values
         company_add_calls = [
@@ -185,13 +195,13 @@ class TestCompanyRepository:
         company_id = uuid4()
         company = Company(
             id=company_id,
+            external_id="MULTI001",
             name="다업종 회사",
             name_en="Multi Industry Co",
             industry=["IT", "소프트웨어", "인공지능", "빅데이터"],
             tags=["tech", "AI"],
             founded_date=date(2020, 1, 1),
             employee_count=100,
-            investment_total=2000000000,
             stage="Series B",
             business_description="다양한 업종의 회사",
             ipo_date=None,
@@ -203,12 +213,13 @@ class TestCompanyRepository:
             company=company, company_aliases=[], company_metrics_snapshots=[]
         )
 
-        mock_session = mock_session_manager.__aenter__.return_value
-
         # Act
         await repository.save(aggregate)
 
         # Assert
+        # Get the mock session to verify calls
+        mock_session = await mock_session_manager.__aenter__()
+        
         company_add_calls = [
             call
             for call in mock_session.add.call_args_list
@@ -250,13 +261,13 @@ class TestCompanyRepository:
         company_id = uuid4()
         company = Company(
             id=company_id,
+            external_id="EMPTY001",
             name="업종 없는 회사",
             name_en="No Industry Co",
             industry=[],  # Empty list
             tags=[],
             founded_date=date(2020, 1, 1),
             employee_count=10,
-            investment_total=100000000,
             stage="Seed",
             business_description="업종이 명확하지 않은 회사",
             ipo_date=None,
@@ -268,12 +279,13 @@ class TestCompanyRepository:
             company=company, company_aliases=[], company_metrics_snapshots=[]
         )
 
-        mock_session = mock_session_manager.__aenter__.return_value
-
         # Act
         await repository.save(aggregate)
 
         # Assert
+        # Get the mock session to verify calls
+        mock_session = await mock_session_manager.__aenter__()
+        
         company_add_calls = [
             call
             for call in mock_session.add.call_args_list
@@ -294,13 +306,13 @@ class TestCompanyRepository:
         company_id = uuid4()
         company = Company(
             id=company_id,
+            external_id="TAG001",
             name="태그가 있는 회사",
             name_en="Tagged Company",
             industry=["IT", "소프트웨어"],
             tags=["스타트업", "AI", "혁신기업", "빅데이터"],
             founded_date=date(2021, 5, 15),
             employee_count=200,
-            investment_total=5000000000,
             stage="Series C",
             business_description="다양한 태그를 가진 기업",
             ipo_date=None,
@@ -312,12 +324,13 @@ class TestCompanyRepository:
             company=company, company_aliases=[], company_metrics_snapshots=[]
         )
 
-        mock_session = mock_session_manager.__aenter__.return_value
-
         # Act
         await repository.save(aggregate)
 
         # Assert
+        # Get the mock session to verify calls
+        mock_session = await mock_session_manager.__aenter__()
+        
         company_add_calls = [
             call
             for call in mock_session.add.call_args_list
@@ -340,13 +353,13 @@ class TestCompanyRepository:
         company_id = uuid4()
         company = Company(
             id=company_id,
+            external_id="NOTAG001",
             name="태그 없는 회사",
             name_en="No Tags Co",
             industry=["IT"],
             tags=[],  # Empty tags list
             founded_date=date(2020, 1, 1),
             employee_count=10,
-            investment_total=100000000,
             stage="Seed",
             business_description="태그가 없는 회사",
             ipo_date=None,
@@ -358,12 +371,13 @@ class TestCompanyRepository:
             company=company, company_aliases=[], company_metrics_snapshots=[]
         )
 
-        mock_session = mock_session_manager.__aenter__.return_value
-
         # Act
         await repository.save(aggregate)
 
         # Assert
+        # Get the mock session to verify calls
+        mock_session = await mock_session_manager.__aenter__()
+        
         company_add_calls = [
             call
             for call in mock_session.add.call_args_list

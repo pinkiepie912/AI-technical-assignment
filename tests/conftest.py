@@ -22,13 +22,13 @@ def sample_company(sample_company_id) -> Company:
     """Create a sample company entity for testing"""
     return Company(
         id=sample_company_id,
+        external_id="TEST001",
         name="테스트 회사",
         name_en="Test Company",
         industry=["IT", "소프트웨어"],
         tags=["tech", "스타트업"],
         founded_date=date(2020, 1, 1),
         employee_count=50,
-        investment_total=1000000000,
         stage="Series A",
         business_description="테스트용 회사입니다",
         ipo_date=None,
@@ -84,13 +84,13 @@ def minimal_company(sample_company_id) -> Company:
     """Create a minimal company entity for testing edge cases"""
     return Company(
         id=sample_company_id,
+        external_id="MIN001",
         name="미니멀 회사",
         name_en=None,
         industry=[],
         tags=[],
         founded_date=None,
         employee_count=None,
-        investment_total=None,
         stage=None,
         business_description=None,
         ipo_date=None,

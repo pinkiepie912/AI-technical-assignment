@@ -95,7 +95,7 @@ class TestForestOfHyuksinReader:
             company = result.company
             assert company.name == "미니멀 코퍼레이션"
             assert company.name_en == "Minimal Corp"
-            assert company.investment_total is None  # No investment in minimal data
+            assert company.total_investment is None  # No investment in minimal data
             assert company.stage is None
             assert company.founded_date.year == 2020
 
@@ -264,7 +264,7 @@ class TestForestOfHyuksinReader:
 
             # Test optional fields are handled properly
             assert company.name_en is not None  # Should have value from minimal data
-            assert company.investment_total is None  # Should be None in minimal
+            assert company.total_investment is None  # Should be None in minimal
             assert company.stage is None  # Should be None
             assert company.business_description is not None  # Has value
             assert company.ipo_date is None  # Should be None
@@ -421,7 +421,7 @@ class TestForestOfHyuksinReader:
             company = result.company
             assert isinstance(company.name, str)
             assert isinstance(company.employee_count, (int, type(None)))
-            assert isinstance(company.investment_total, (int, type(None)))
+            assert isinstance(company.total_investment, (int, type(None)))
             assert isinstance(company.founded_date, (date, type(None)))
             assert isinstance(company.ipo_date, (date, type(None)))
             assert isinstance(company.industry, list)

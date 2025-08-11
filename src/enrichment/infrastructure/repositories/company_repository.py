@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import date
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Sequence
 from uuid import UUID
 
 from sqlalchemy import and_, or_, select
@@ -126,44 +126,30 @@ class CompanyRepository:
         return aggregates
 
     async def _get_aliases_map_by(
-        self, aliases: List[str], session: Optional[AsyncSession] = None
+        self, aliases: List[str], session: AsyncSession
     ) -> Dict[str, CompanyAliasOrm]:
         if not aliases:
             return {}
 
         query = select(CompanyAliasOrm).where(CompanyAliasOrm.alias.in_(aliases))
-
-        if session:
-            orms = (await session.execute(query)).scalars().all()
-        else:
-            async with self.read_session_manager as session:
-                orms = (await session.execute(query)).scalars().all()
-
+        orms = (await session.execute(query)).scalars().all()
         alias_map = {}
         for row in orms:
             alias_map[row.alias] = row
         return alias_map
 
     async def _get_companies(
-        self, company_ids: List[UUID], session: Optional[AsyncSession] = None
+        self, company_ids: List[UUID], session: AsyncSession
     ) -> Sequence[CompanyOrm]:
         if not company_ids:
             return []
 
         query = select(CompanyOrm).where(CompanyOrm.id.in_(company_ids))
-
-        if session:
-            ext = await session.execute(query)
-        else:
-            async with self.read_session_manager as session:
-                ext = await session.execute(query)
-
+        ext = await session.execute(query)
         return ext.scalars().all()
 
     async def _get_companies_metrics_snapshots(
-        self,
-        params: List[GetCompaniesMetricsSnapshotsPram],
-        session: Optional[AsyncSession] = None,
+        self, params: List[GetCompaniesMetricsSnapshotsPram], session: AsyncSession
     ) -> Dict[UUID, List[CompanyMetricsSnapshotOrm]]:
         if not params:
             return {}
@@ -185,12 +171,7 @@ class CompanyRepository:
             .order_by(CompanyMetricsSnapshotOrm.reference_date.desc())
         )
 
-        if session:
-            ext = await session.execute(query)
-        else:
-            async with self.read_session_manager as session:
-                ext = await session.execute(query)
-
+        ext = await session.execute(query)
         orms = ext.scalars().all()
         result = defaultdict(list)
         for orm in orms:
@@ -222,7 +203,6 @@ class CompanyRepository:
             tags=orm.biz_tags or [],
             founded_date=orm.founded_date,
             employee_count=orm.employee_count,
-            investment_total=orm.total_investment,
             stage=orm.stage or "",
             business_description=orm.biz_description or "",
             ipo_date=orm.ipo_date,

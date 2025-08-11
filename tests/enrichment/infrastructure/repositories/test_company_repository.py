@@ -1,23 +1,29 @@
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
+from typing import List
 
 import pytest
 
-from db.db import WriteSessionManager
+from db.db import ReadSessionManager, WriteSessionManager
+from enrichment.application.dtos.company import GetCompaniesMetricsSnapshotsPram
 from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
 from enrichment.domain.entities.company import Company
+from enrichment.domain.entities.company_alias import CompanyAlias
+from enrichment.domain.entities.company_metrics_snapshot import CompanyMetricsSnapshot
+from enrichment.domain.vos.metrics import MonthlyMetrics
 from enrichment.infrastructure.orm.company import Company as CompanyOrm
 from enrichment.infrastructure.orm.company_alias import CompanyAlias as CompanyAliasOrm
 from enrichment.infrastructure.orm.company_snapshot import (
     CompanyMetricsSnapshot as CompanyMetricsSnapshotOrm,
 )
 from enrichment.infrastructure.repositories.company_repository import CompanyRepository
+from inference.application.dtos.infer import GetCompaniesParam
 
 
 class TestCompanyRepository:
     @pytest.fixture
-    def mock_session_manager(self) -> MagicMock:
+    def mock_write_session_manager(self) -> MagicMock:
         """Mock WriteSessionManager for testing"""
         session_manager = MagicMock(spec=WriteSessionManager)
         mock_session = MagicMock()
@@ -34,16 +40,35 @@ class TestCompanyRepository:
         
         return session_manager
 
+    @pytest.fixture 
+    def mock_read_session_manager(self) -> MagicMock:
+        """Mock ReadSessionManager for testing"""
+        session_manager = MagicMock(spec=ReadSessionManager)
+        mock_session = MagicMock()
+        
+        # Mock scalars().all() chain
+        mock_scalars = MagicMock()
+        mock_scalars.all = MagicMock(return_value=[])
+        mock_execute_result = MagicMock()
+        mock_execute_result.scalars = MagicMock(return_value=mock_scalars)
+        
+        mock_session.execute = AsyncMock(return_value=mock_execute_result)
+        
+        session_manager.__aenter__ = AsyncMock(return_value=mock_session)
+        session_manager.__aexit__ = AsyncMock(return_value=None)
+        
+        return session_manager
+
     @pytest.fixture
-    def repository(self, mock_session_manager: MagicMock) -> CompanyRepository:
-        """Create CompanyRepository with mocked session manager"""
-        return CompanyRepository(mock_session_manager, mock_session_manager)
+    def repository(self, mock_write_session_manager: MagicMock, mock_read_session_manager: MagicMock) -> CompanyRepository:
+        """Create CompanyRepository with mocked session managers"""
+        return CompanyRepository(mock_write_session_manager, mock_read_session_manager)
 
     @pytest.mark.asyncio
     async def test_save_complete_aggregate(
         self,
         repository: CompanyRepository,
-        mock_session_manager: MagicMock,
+        mock_write_session_manager: MagicMock,
         sample_company_aggregate: CompanyAggregate,
     ):
         """Test saving a complete CompanyAggregate"""
@@ -52,11 +77,11 @@ class TestCompanyRepository:
 
         # Assert
         # Verify session manager was used
-        mock_session_manager.__aenter__.assert_called_once()
-        mock_session_manager.__aexit__.assert_called_once()
+        mock_write_session_manager.__aenter__.assert_called_once()
+        mock_write_session_manager.__aexit__.assert_called_once()
         
         # Get the mock session to verify calls
-        mock_session = await mock_session_manager.__aenter__()
+        mock_session = await mock_write_session_manager.__aenter__()
 
         # Verify company ORM object was created and added
         company_add_calls = [
@@ -117,7 +142,7 @@ class TestCompanyRepository:
 
     @pytest.mark.asyncio
     async def test_save_minimal_aggregate(
-        self, repository: CompanyRepository, mock_session_manager: MagicMock
+        self, repository: CompanyRepository, mock_write_session_manager: MagicMock
     ):
         """Test saving an aggregate with minimal data"""
         # Arrange
@@ -147,11 +172,11 @@ class TestCompanyRepository:
 
         # Assert
         # Verify session manager was used
-        mock_session_manager.__aenter__.assert_called_once()
-        mock_session_manager.__aexit__.assert_called_once()
+        mock_write_session_manager.__aenter__.assert_called_once()
+        mock_write_session_manager.__aexit__.assert_called_once()
         
         # Get the mock session to verify calls
-        mock_session = await mock_session_manager.__aenter__()
+        mock_session = await mock_write_session_manager.__aenter__()
 
         # Verify company was added with None/empty values
         company_add_calls = [
@@ -188,7 +213,7 @@ class TestCompanyRepository:
 
     @pytest.mark.asyncio
     async def test_save_industry_splitting(
-        self, repository: CompanyRepository, mock_session_manager: MagicMock
+        self, repository: CompanyRepository, mock_write_session_manager: MagicMock
     ):
         """Test that industry string is properly split into categories"""
         # Arrange
@@ -218,7 +243,7 @@ class TestCompanyRepository:
 
         # Assert
         # Get the mock session to verify calls
-        mock_session = await mock_session_manager.__aenter__()
+        mock_session = await mock_write_session_manager.__aenter__()
         
         company_add_calls = [
             call
@@ -235,26 +260,26 @@ class TestCompanyRepository:
     async def test_save_handles_session_context(
         self,
         repository: CompanyRepository,
-        mock_session_manager: MagicMock,
+        mock_write_session_manager: MagicMock,
         sample_company_aggregate: CompanyAggregate,
     ):
         """Test that save method properly handles async session context"""
         # Arrange
-        mock_session_manager.__aenter__ = AsyncMock()
-        mock_session_manager.__aexit__ = AsyncMock()
+        mock_write_session_manager.__aenter__ = AsyncMock()
+        mock_write_session_manager.__aexit__ = AsyncMock()
         mock_session = MagicMock()
-        mock_session_manager.__aenter__.return_value = mock_session
+        mock_write_session_manager.__aenter__.return_value = mock_session
 
         # Act
         await repository.save(sample_company_aggregate)
 
         # Assert
-        mock_session_manager.__aenter__.assert_called_once()
-        mock_session_manager.__aexit__.assert_called_once()
+        mock_write_session_manager.__aenter__.assert_called_once()
+        mock_write_session_manager.__aexit__.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_save_empty_industry_handling(
-        self, repository: CompanyRepository, mock_session_manager: MagicMock
+        self, repository: CompanyRepository, mock_write_session_manager: MagicMock
     ):
         """Test handling of empty/None industry field"""
         # Arrange
@@ -284,7 +309,7 @@ class TestCompanyRepository:
 
         # Assert
         # Get the mock session to verify calls
-        mock_session = await mock_session_manager.__aenter__()
+        mock_session = await mock_write_session_manager.__aenter__()
         
         company_add_calls = [
             call
@@ -299,7 +324,7 @@ class TestCompanyRepository:
 
     @pytest.mark.asyncio
     async def test_save_with_tags(
-        self, repository: CompanyRepository, mock_session_manager: MagicMock
+        self, repository: CompanyRepository, mock_write_session_manager: MagicMock
     ):
         """Test saving a company with tags field"""
         # Arrange
@@ -329,7 +354,7 @@ class TestCompanyRepository:
 
         # Assert
         # Get the mock session to verify calls
-        mock_session = await mock_session_manager.__aenter__()
+        mock_session = await mock_write_session_manager.__aenter__()
         
         company_add_calls = [
             call
@@ -346,7 +371,7 @@ class TestCompanyRepository:
 
     @pytest.mark.asyncio
     async def test_save_empty_tags_handling(
-        self, repository: CompanyRepository, mock_session_manager: MagicMock
+        self, repository: CompanyRepository, mock_write_session_manager: MagicMock
     ):
         """Test handling of empty tags field"""
         # Arrange
@@ -376,7 +401,7 @@ class TestCompanyRepository:
 
         # Assert
         # Get the mock session to verify calls
-        mock_session = await mock_session_manager.__aenter__()
+        mock_session = await mock_write_session_manager.__aenter__()
         
         company_add_calls = [
             call
@@ -392,13 +417,237 @@ class TestCompanyRepository:
     def test_constructor(self):
         """Test CompanyRepository constructor"""
         # Arrange
-        mock_session_manager = MagicMock(spec=WriteSessionManager)
+        mock_write_session_manager = MagicMock(spec=WriteSessionManager)
+        mock_read_session_manager = MagicMock(spec=ReadSessionManager)
 
         # Act
-        repository = CompanyRepository(mock_session_manager, mock_session_manager)
+        repository = CompanyRepository(mock_write_session_manager, mock_read_session_manager)
 
         # Assert
-        assert repository.write_session_manager is mock_session_manager
-        assert repository.read_session_manager is mock_session_manager
+        assert repository.write_session_manager is mock_write_session_manager
+        assert repository.read_session_manager is mock_read_session_manager
         assert isinstance(repository, CompanyRepository)
+
+    # Tests for get_companies method
+    @pytest.mark.asyncio
+    async def test_get_companies_empty_params(
+        self,
+        repository: CompanyRepository,
+        mock_read_session_manager: MagicMock,
+    ):
+        """Test get_companies with empty params list"""
+        # Act
+        result = await repository.get_companies([])
+
+        # Assert
+        assert result == []
+        # Verify no database queries were made
+        mock_read_session_manager.__aenter__.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_get_companies_no_matching_aliases(
+        self,
+        repository: CompanyRepository,
+        mock_read_session_manager: MagicMock,
+    ):
+        """Test get_companies when no aliases match"""
+        # Arrange
+        params = [
+            GetCompaniesParam(
+                alias="nonexistent-company",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 12, 31)
+            )
+        ]
+
+        # Act
+        result = await repository.get_companies(params)
+
+        # Assert
+        assert result == []
+        # Verify session manager was used at least once
+        assert mock_read_session_manager.__aenter__.call_count >= 1
+        assert mock_read_session_manager.__aexit__.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_get_companies_with_matching_data(
+        self,
+        repository: CompanyRepository,
+        mock_read_session_manager: MagicMock,
+    ):
+        """Test get_companies with matching data"""
+        # Arrange
+        company_id = uuid4()
+        params = [
+            GetCompaniesParam(
+                alias="test-company",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 12, 31)
+            )
+        ]
+
+        # Mock alias ORM
+        alias_orm = CompanyAliasOrm(
+            id=1,
+            company_id=company_id,
+            alias="test-company",
+            alias_type="name"
+        )
+
+        # Mock company ORM
+        company_orm = CompanyOrm(
+            id=company_id,
+            external_id="TEST001",
+            name="테스트 회사",
+            name_en="Test Company",
+            biz_categories=["IT", "소프트웨어"],
+            biz_tags=["tech", "스타트업"],
+            biz_description="테스트용 회사입니다",
+            stage="Series A",
+            total_investment=1000000000,
+            founded_date=date(2020, 1, 1),
+            ipo_date=None,
+            employee_count=50,
+            origin_file_path="/test/path/file.json"
+        )
+
+        # Mock metrics snapshot ORM
+        snapshot_orm = CompanyMetricsSnapshotOrm(
+            id=1,
+            company_id=company_id,
+            reference_date=date(2024, 1, 1),
+            metrics={
+                "mau": [],
+                "patents": [],
+                "finance": [],
+                "investments": [],
+                "organizations": []
+            }
+        )
+
+        # Set up mock session to return proper responses
+        def mock_execute_side_effect(query):
+            mock_execute_result = MagicMock()
+            mock_scalars = MagicMock()
+            
+            # Check query type based on the table being queried
+            query_str = str(query)
+            if "company_alias" in query_str.lower():
+                # Return alias for alias query
+                mock_scalars.all = MagicMock(return_value=[alias_orm])
+            elif "company_metrics_snapshot" in query_str.lower():
+                # Return snapshot for metrics query
+                mock_scalars.all = MagicMock(return_value=[snapshot_orm])
+            else:
+                # Return company for company query
+                mock_scalars.all = MagicMock(return_value=[company_orm])
+            
+            mock_execute_result.scalars = MagicMock(return_value=mock_scalars)
+            return mock_execute_result
+        
+        # Modify the existing mock session setup
+        mock_read_session_manager._session_instance = MagicMock()
+        mock_read_session_manager._session_instance.execute = AsyncMock(side_effect=mock_execute_side_effect)
+        mock_read_session_manager.__aenter__ = AsyncMock(return_value=mock_read_session_manager._session_instance)
+
+        # Act
+        result = await repository.get_companies(params)
+
+        # Assert
+        assert len(result) == 1
+        assert isinstance(result[0], CompanyAggregate)
+        assert result[0].company.id == company_id
+        assert result[0].company.name == "테스트 회사"
+        assert len(result[0].company_aliases) == 1
+        assert result[0].company_aliases[0].alias == "test-company"
+        assert len(result[0].company_metrics_snapshots) == 1
+        
+        # Verify session manager was used
+        assert mock_read_session_manager.__aenter__.call_count >= 1
+        assert mock_read_session_manager.__aexit__.call_count >= 1
+
+    @pytest.mark.asyncio 
+    async def test_get_companies_multiple_params(
+        self,
+        repository: CompanyRepository,
+        mock_read_session_manager: MagicMock,
+    ):
+        """Test get_companies with multiple company params"""
+        # Arrange
+        company_id1 = uuid4()
+        company_id2 = uuid4()
+        
+        params = [
+            GetCompaniesParam(
+                alias="company-1",
+                start_date=date(2024, 1, 1),
+                end_date=date(2024, 6, 30)
+            ),
+            GetCompaniesParam(
+                alias="company-2", 
+                start_date=date(2024, 7, 1),
+                end_date=date(2024, 12, 31)
+            )
+        ]
+
+        # Mock alias ORMs
+        alias_orm1 = CompanyAliasOrm(id=1, company_id=company_id1, alias="company-1", alias_type="name")
+        alias_orm2 = CompanyAliasOrm(id=2, company_id=company_id2, alias="company-2", alias_type="name")
+
+        # Mock company ORMs
+        company_orm1 = CompanyOrm(
+            id=company_id1, external_id="COMP001", name="회사1", name_en="Company 1",
+            biz_categories=["IT"], biz_tags=["tech"], biz_description="첫번째 회사",
+            stage="Series A", total_investment=500000000, founded_date=date(2019, 1, 1),
+            ipo_date=None, employee_count=25, origin_file_path="/test/comp1.json"
+        )
+        company_orm2 = CompanyOrm(
+            id=company_id2, external_id="COMP002", name="회사2", name_en="Company 2",
+            biz_categories=["Finance"], biz_tags=["fintech"], biz_description="두번째 회사",
+            stage="Series B", total_investment=1000000000, founded_date=date(2020, 1, 1),
+            ipo_date=None, employee_count=75, origin_file_path="/test/comp2.json"
+        )
+
+        # Set up mock session
+        def mock_execute_side_effect(query):
+            mock_execute_result = MagicMock()
+            mock_scalars = MagicMock()
+            
+            query_str = str(query)
+            if "company_alias" in query_str.lower():
+                # Return both aliases for alias query
+                mock_scalars.all = MagicMock(return_value=[alias_orm1, alias_orm2])
+            elif "company_metrics_snapshot" in query_str.lower():
+                # Return empty snapshots for metrics query
+                mock_scalars.all = MagicMock(return_value=[])
+            else:
+                # Return both companies for company query
+                mock_scalars.all = MagicMock(return_value=[company_orm1, company_orm2])
+            
+            mock_execute_result.scalars = MagicMock(return_value=mock_scalars)
+            return mock_execute_result
+        
+        # Modify the existing mock session setup
+        mock_read_session_manager._session_instance = MagicMock()
+        mock_read_session_manager._session_instance.execute = AsyncMock(side_effect=mock_execute_side_effect)
+        mock_read_session_manager.__aenter__ = AsyncMock(return_value=mock_read_session_manager._session_instance)
+
+        # Act
+        result = await repository.get_companies(params)
+
+        # Assert
+        assert len(result) == 2
+        
+        # Find results by company name
+        comp1_result = next((r for r in result if r.company.name == "회사1"), None)
+        comp2_result = next((r for r in result if r.company.name == "회사2"), None)
+        
+        assert comp1_result is not None
+        assert comp2_result is not None
+        assert comp1_result.company.external_id == "COMP001"
+        assert comp2_result.company.external_id == "COMP002"
+        
+        # Verify session manager was used
+        assert mock_read_session_manager.__aenter__.call_count >= 1
+        assert mock_read_session_manager.__aexit__.call_count >= 1
 

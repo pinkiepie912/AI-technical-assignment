@@ -1,8 +1,8 @@
-"""add external_id employee_count to companies table
+"""Add company related tables
 
-Revision ID: 76982d0ca1d5
-Revises: d97a2c8d4a9b
-Create Date: 2025-08-10 22:45:20.452900
+Revision ID: e260f7b1ea8e
+Revises: 
+Create Date: 2025-08-11 22:24:11.167059
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '76982d0ca1d5'
-down_revision: Union[str, Sequence[str], None] = 'd97a2c8d4a9b'
+revision: str = 'e260f7b1ea8e'
+down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

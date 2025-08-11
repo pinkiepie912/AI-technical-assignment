@@ -175,7 +175,7 @@ class CompanyRepository:
                 and_(
                     CompanyMetricsSnapshotOrm.company_id == param.company_id,
                     CompanyMetricsSnapshotOrm.reference_date >= param.start_date,
-                    CompanyMetricsSnapshotOrm.reference_date < end_date,
+                    CompanyMetricsSnapshotOrm.reference_date <= end_date,
                 )
             )
 

@@ -68,7 +68,9 @@ class Container(containers.DeclarativeContainer):
     # Enrichment
     # # Repositories
     company_repository = providers.Factory(
-        CompanyRepository, session_manager=write_session_manager
+        CompanyRepository,
+        write_session_manager=write_session_manager,
+        read_session_manager=read_session_manager,
     )
 
     # # Readers

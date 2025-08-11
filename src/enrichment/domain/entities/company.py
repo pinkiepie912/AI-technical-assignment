@@ -16,7 +16,6 @@ class CompanyCreateParams(BaseModel):
     industry: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
     employee_count: int
-    investment_total: Optional[int] = None
     stage: Optional[str] = None
     business_description: Optional[str] = None
     founded_date: Optional[date] = None
@@ -41,7 +40,6 @@ class Company(BaseModel):
     tags: List[str] = Field(default_factory=list)  # 비즈니스 태그 목록
     founded_date: Optional[date]  # 창립일
     employee_count: Optional[int]  # 직원 수
-    investment_total: Optional[int]  # 총 투자 금액 (중복 필드)
     stage: Optional[str]  # 투자 단계
     business_description: Optional[str]  # 사업 설명
     ipo_date: Optional[date]  # IPO 날짜
@@ -59,7 +57,6 @@ class Company(BaseModel):
             tags=params.tags,
             founded_date=params.founded_date,
             employee_count=params.employee_count,
-            investment_total=params.investment_total,
             stage=params.stage,
             business_description=params.business_description,
             ipo_date=params.ipo_date,

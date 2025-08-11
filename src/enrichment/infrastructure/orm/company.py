@@ -23,6 +23,7 @@ class Company(Base):
     ForestOfHyuksinReader에서 JSON 데이터를 파싱하여 CompanyAggregate로 생성되고,
     CompanyRepository의 save 메서드를 통해 데이터베이스에 저장됨
     """
+
     __tablename__ = "companies"
 
     # 기본키: UUID 형태의 회사 고유 식별자
@@ -58,11 +59,6 @@ class Company(Base):
 
     # 투자 단계 (예: Series A, Series B 등)
     stage: Mapped[str] = mapped_column(String(32), default="", server_default="")
-
-    # 총 투자 금액 (단위: 원)
-    total_investment: Mapped[int] = mapped_column(
-        BigInteger, default=0, server_default="0"
-    )
 
     # 창립일
     founded_date: Mapped[date] = mapped_column(Date)

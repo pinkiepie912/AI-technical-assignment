@@ -12,6 +12,7 @@ from db.model import Base
 if TYPE_CHECKING:
     from .company_alias import CompanyAlias
     from .company_snapshot import CompanyMetricsSnapshot
+    from .news_chunk import NewsChunk
 
 
 __all__ = ["Company"]
@@ -87,4 +88,9 @@ class Company(Base):
     # 관계: 회사 메트릭 스냅샷 목록 (시계열 데이터)
     snapshots: Mapped[List["CompanyMetricsSnapshot"]] = relationship(
         "CompanyMetricsSnapshot", back_populates="company"
+    )
+
+    # 관계: 뉴스 청크 목록
+    news_chunks: Mapped[List["NewsChunk"]] = relationship(
+        "NewsChunk", back_populates="company"
     )

@@ -2,11 +2,14 @@ from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from db.db import ReadSessionManager, WriteSessionManager
+from enrichment.application.services.company_info_reader import CompanyInfoReader
 from enrichment.application.services.company_info_writer import CompanyInfoWriter
 from enrichment.infrastructure.readers.forest_of_hyuksin_reader import (
     ForestOfHyuksinReader,
 )
 from enrichment.infrastructure.repositories.company_repository import CompanyRepository
+from inference.application.services.talent_infer import TalentInference
+from inference.infrastructure.llm.openai import OpenAIClient
 
 __all__ = ["Container"]
 
@@ -92,4 +95,22 @@ class Container(containers.DeclarativeContainer):
         CompanyInfoWriter,
         reader=reader_selector,
         repository=company_repository,
+    )
+    company_info_reader = providers.Factory(
+        CompanyInfoReader,
+        repository=company_repository,
+    )
+
+    # Inference
+    # LLM Client
+    openai_client = providers.Factory(
+        OpenAIClient,
+        api_key=config.OPENAI.API_KEY,
+    )
+
+    # services
+    talent_inference_service = providers.Factory(
+        TalentInference,
+        company_info_reader=company_info_reader,
+        llm_client=openai_client,
     )

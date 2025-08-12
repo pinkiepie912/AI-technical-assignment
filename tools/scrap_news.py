@@ -85,21 +85,6 @@ def get_data(file_path: str) -> Tuple[list, list]:
     return parsed_data, fail_data
 
 
-def save_to_csv(data: List[dict], file_path: str) -> None:
-    with open(
-        file_path,
-        "w",
-        newline="",
-        encoding="utf-8-sig",
-    ) as f:
-        writer = csv.DictWriter(
-            f, fieldnames=parsed_data[0].keys(), quoting=csv.QUOTE_MINIMAL
-        )
-        writer.writeheader()
-        writer.writerows(data)
-
-
-if __name__ == "__main__":
-    parsed_data, fail_data = get_data("example_datas/company_news.csv")
-    save_to_csv(parsed_data, "example_datas/company_news_with_contents.csv")
-    save_to_csv(fail_data, "example_datas/company_news_with_contents_fail.csv")
+def scrap_news() -> List[dict]:
+    parsed_data, _ = get_data("example_datas/company_news.csv")
+    return parsed_data

@@ -1,6 +1,3 @@
-import os
-from typing import Optional
-
 from openai import AsyncOpenAI
 
 from src.inference.domain.vos.openai_models import LLMModel
@@ -11,19 +8,20 @@ class OpenAIClient:
     OpenAI API를 직접 호출하는 LLM 클라이언트 구현체
     """
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str):
         """
         OpenAI 클라이언트를 초기화합니다.
 
         Args:
             api_key: OpenAI API 키. 제공되지 않으면 환경변수에서 가져옵니다.
         """
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not self.api_key:
+        if not api_key:
             raise ValueError(
                 "OpenAI API key is required. "
                 "Set OPENAI_API_KEY environment variable or provide api_key parameter."
             )
+
+        self.api_key = api_key
 
         # AsyncOpenAI 클라이언트 초기화
         self.client = AsyncOpenAI(api_key=self.api_key)

@@ -18,6 +18,7 @@ dependency-injector = "^4.48.1"
 pydantic-settings = "^2.10.1"
 uvicorn = "^0.35.0"
 python-multipart = "^0.0.20"
+llama-index-core = "^0.13.1"
 
 
 [tool.poetry.group.dev.dependencies]

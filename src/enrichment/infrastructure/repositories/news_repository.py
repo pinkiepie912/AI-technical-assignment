@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Dict, List
 from uuid import UUID
 
-from sqlalchemy import and_, case, column, func, literal, select
+from pgvector.sqlalchemy import Vector as PG_Vector
+from sqlalchemy import and_, case, cast, column, func, literal, select
 from sqlalchemy import values as sa_values
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
@@ -26,7 +27,7 @@ class NewsRepository(NewsRepositoryPort):
     ) -> Dict[UUID, List[NewsChunk]]:
         """
         여러 검색 쿼리를 한 방에 처리 (VALUES + LATERAL)
-        회사당 limit_per_company 개 제한, similarity_threshold 이상만 반환
+        회사당 limit_per_query 개 제한, similarity_threshold 이상만 반환
         """
         if not context.queries:
             return dict()
@@ -39,7 +40,7 @@ class NewsRepository(NewsRepositoryPort):
         v = (
             sa_values(
                 column("company_id", PG_UUID(as_uuid=True)),
-                column("qvec"),
+                column("qvec", PG_Vector(1536)),
                 column("start_date"),
                 column("end_date"),
             )
@@ -59,7 +60,7 @@ class NewsRepository(NewsRepositoryPort):
         )
 
         # 3) 거리/유사도: 코사인 기준 (1 - cosine_distance)
-        dist = NewsChunkORM.vector.cosine_distance(v.c.qvec)
+        dist = NewsChunkORM.vector.cosine_distance(cast(v.c.qvec, PG_Vector(1536)))
         sim = (literal(1.0) - dist).label("similarity_score")
 
         # 4) LATERAL 식으로 생각되는 조인 계획: 값 한 줄(q)마다 해당 범위의 뉴스에서 점수 계산
@@ -82,7 +83,7 @@ class NewsRepository(NewsRepositoryPort):
             .subquery("ranked")
         )
 
-        # 5) 회사별 상위 limit_per_company만 남기고, 전체는 유사도 내림차순 정렬
+        # 5) 회사별 상위 limit_per_query만 남기고, 전체는 유사도 내림차순 정렬
         final_stmt = (
             select(
                 ranked.c.id,
@@ -91,7 +92,7 @@ class NewsRepository(NewsRepositoryPort):
                 ranked.c.contents,
                 ranked.c.similarity_score,
             )
-            .where(ranked.c.rn <= context.limit_per_company)
+            .where(ranked.c.rn <= context.limit_per_query)
             .order_by(ranked.c.similarity_score.desc())
         )
 

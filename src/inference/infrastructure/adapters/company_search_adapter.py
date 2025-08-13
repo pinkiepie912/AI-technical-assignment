@@ -12,7 +12,7 @@ from inference.domain.entities.company_metrics import (
     MetricsSummary,
     PatentSummary,
 )
-from inference.domain.ports.company_context_search_port import (
+from inference.domain.repositories.company_context_search_port import (
     CompanyContextSearchPort,
     CompanySearchContextParam,
 )

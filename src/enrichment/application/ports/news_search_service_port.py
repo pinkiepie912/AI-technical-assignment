@@ -1,33 +1,35 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional
 from uuid import UUID
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from enrichment.domain.entities.new_chunk import NewsChunk
 
 
-@dataclass(frozen=True)
-class NewsSearchQuery:
-    """기업별 뉴스 검색 쿼리"""
-
+class NewsSearchQuery(BaseModel):
     company_id: UUID
     query_text: str
     start_date: date
     end_date: Optional[date] = None
 
+    model_config = ConfigDict(frozen=True, extra="ignore")
 
-@dataclass(frozen=True)
-class NewsSearchParam:
+
+class NewsSearchParam(BaseModel):
     queries: List[NewsSearchQuery]
-    limit_per_query: int = 10
-    similarity_threshold: float = 0.7
+    limit_per_query: int = Field(default=10)
+    similarity_threshold: float = Field(default=0.7)
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
 
 
-@dataclass(frozen=True)
-class NewsByCompany:
+class NewsByCompany(BaseModel):
     company_id: UUID
     news_chunks: List[NewsChunk]
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
 
 
 class NewsSearchServicePort(ABC):

@@ -13,7 +13,7 @@ from inference.application.services.talent_infer import TalentInference
 from inference.infrastructure.adapters.company_search_adapter import (
     CompanyContextSearchAdapter,
 )
-from inference.infrastructure.llm.openai import OpenAIClient
+from inference.infrastructure.adapters.openai_adapter import OpenAIClient
 
 __all__ = ["Container"]
 

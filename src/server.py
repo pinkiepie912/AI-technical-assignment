@@ -5,11 +5,15 @@ import os
 from contextlib import asynccontextmanager
 from typing import List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from config.config import Config
 from containers import Container
+from shared.exceptions import (
+    general_exception_handler,
+    http_exception_handler,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +63,7 @@ def create_app() -> FastAPI:
     container = Container()
 
     controller_modules = load_controllers()
-
     container.config.from_pydantic(config)
-
     container.wire(modules=controller_modules)
 
     @asynccontextmanager
@@ -76,10 +78,24 @@ def create_app() -> FastAPI:
     app = FastAPI(
         lifespan=lifespan,
         title="SearcHRight API",
-        description="RAG-based talent enrichment system",
+        description="""
+        RAG-based talent enrichment system
+        
+        **주요 기능**:
+        - 인재 프로필 분석 및 경험 태그 추론
+        - 데이터 소스 파일 처리 및 저장
+        - 통합 에러 처리 및 표준화된 응답 형식
+        """,
         version="1.0.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
     )
     app.state.container = container
+
+    # 전역 예외 처리기 등록
+    app.add_exception_handler(HTTPException, http_exception_handler)
+    app.add_exception_handler(Exception, general_exception_handler)
 
     register_routers(app, controller_modules)
 

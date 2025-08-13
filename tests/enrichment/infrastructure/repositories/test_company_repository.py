@@ -1,7 +1,7 @@
 """Test cases for Company repository"""
 import pytest
 from datetime import date
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, MagicMock
 from uuid import UUID, uuid4
 from collections import defaultdict
 
@@ -91,6 +91,7 @@ class TestCompanyRepository:
     async def test_save_success(self, repository, sample_company_aggregate, mock_write_session_manager):
         # Mock session and execute method
         mock_session = AsyncMock()
+        mock_session.add = MagicMock() # Explicitly mock add as a synchronous method
         mock_write_session_manager.__aenter__.return_value = mock_session
         
         # Mock that company doesn't exist (no duplicate)

@@ -51,7 +51,7 @@ class OpenAIClient(LlmClientPort):
                 model=model.value,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,  # 일관된 추론을 위해 낮은 temperature 사용
-                max_tokens=500,  # 적절한 응답 길이 제한
+                max_completion_tokens=1000,
                 top_p=1.0,
                 frequency_penalty=0,
                 presence_penalty=0,

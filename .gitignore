@@ -394,3 +394,5 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,macos,python,jupyternotebooks,visualstudiocode,pycharm,venv
 CLAUDE.md
+
+example_datas/company_news_with_vector.csv

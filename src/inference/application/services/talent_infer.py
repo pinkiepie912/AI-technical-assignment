@@ -12,7 +12,7 @@ from inference.controllers.dtos.talent_infer import (
     Position,
     TalentProfile,
 )
-from inference.domain.ports.company_context_search_port import (
+from inference.domain.repositories.company_context_search_port import (
     CompanyContextSearchPort,
     CompanySearchContextParam,
 )

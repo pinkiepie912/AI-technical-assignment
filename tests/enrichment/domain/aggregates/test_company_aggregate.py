@@ -1,548 +1,517 @@
+"""Test cases for CompanyAggregate"""
+
 from datetime import date
-from uuid import uuid4
+from uuid import UUID
 
 import pytest
 
 from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
-from enrichment.domain.entities.company import Company
-from enrichment.domain.entities.company_alias import CompanyAlias
-from enrichment.domain.entities.company_metrics_snapshot import CompanyMetricsSnapshot
+from enrichment.domain.entities.company import Company, CompanyCreateParams
+from enrichment.domain.entities.company_alias import (
+    CompanyAlias,
+    CompanyAliasCreateParams,
+)
+from enrichment.domain.entities.company_metrics_snapshot import (
+    CompanyMetricSnapshotCreateParams,
+    CompanyMetricsSnapshot,
+)
 from enrichment.domain.vos.metrics import (
+    MAU,
     Finance,
     Investment,
-    MAU,
     MonthlyMetrics,
     Organization,
     Patent,
 )
 
 
-class TestCompanyAggregateGetSummary:
-    """CompanyAggregate.get_summary 메서드 테스트"""
+class TestCompanyAggregate:
+    def test_create_aggregate_minimal(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
 
-    @pytest.fixture
-    def company_id(self):
-        """테스트용 회사 ID"""
-        return uuid4()
-
-    @pytest.fixture
-    def basic_company(self, company_id):
-        """기본 회사 정보"""
-        return Company(
-            id=company_id,
-            external_id="TEST001",
-            name="테스트 회사",
-            name_en="Test Company",
-            industry=["IT", "소프트웨어"],
-            tags=["tech", "스타트업"],
-            founded_date=date(2020, 1, 1),
-            employee_count=100,
-            stage="Series A",
-            business_description="혁신적인 핀테크 회사",
-            ipo_date=None,
-            total_investment=5000000000,
-            origin_file_path="/test/path.json",
+        # Company 생성
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="테스트회사", employee_count=100
         )
+        company = Company.of(company_params)
+        company.id = company_id  # ID 설정
 
-    @pytest.fixture
-    def company_aliases(self, company_id):
-        """회사 별칭들"""
-        return [
-            CompanyAlias(
-                company_id=company_id,
-                alias="테스트 회사",
-                alias_type="name",
-                id=1,
-            ),
-            CompanyAlias(
-                company_id=company_id,
-                alias="Test Company",
-                alias_type="name_en",
-                id=2,
-            ),
-            CompanyAlias(
-                company_id=company_id,
-                alias="TestPay",
-                alias_type="product",
-                id=3,
-            ),
-        ]
+        # 빈 리스트들
+        company_aliases = []
+        company_metrics_snapshots = []
 
-    @pytest.fixture
-    def full_metrics_snapshots(self, company_id):
-        """완전한 메트릭 스냅샷 데이터 (최신순)"""
-        return [
-            # 최신 스냅샷 (2024년)
-            CompanyMetricsSnapshot(
-                id=2,
-                company_id=company_id,
-                reference_date=date(2024, 1, 1),
-                metrics=MonthlyMetrics(
-                    mau=[
-                        MAU(
-                            product_id="P001",
-                            product_name="TestPay",
-                            value=1000000,
-                            date=date(2024, 1, 1),
-                            growthRate=20.5,
-                        ),
-                        MAU(
-                            product_id="P002",
-                            product_name="TestWallet",
-                            value=500000,
-                            date=date(2024, 1, 1),
-                            growthRate=15.0,
-                        ),
-                    ],
-                    patents=[
-                        Patent(
-                            level="A+",
-                            title="혁신적인 결제 기술",
-                            date=date(2024, 1, 1),
-                        ),
-                        Patent(
-                            level="A",
-                            title="보안 알고리즘",
-                            date=date(2024, 1, 1),
-                        ),
-                    ],
-                    finance=[
-                        Finance(
-                            year=2024,
-                            profit=10000000000,
-                            operatingProfit=8000000000,
-                            netProfit=6000000000,
-                        ),
-                    ],
-                    investments=[
-                        Investment(
-                            level="Series B",
-                            date=date(2024, 1, 1),
-                            amount=2000000000,
-                            investors=["VC Fund A", "Angel Investor B"],
-                        ),
-                    ],
-                    organizations=[
-                        Organization(
-                            name="본사",
-                            date=date(2024, 1, 1),
-                            people_count=150,
-                            growth_rate=25.0,
-                        ),
-                    ],
-                ),
-            ),
-            # 이전 스냅샷 (2022년)
-            CompanyMetricsSnapshot(
-                id=1,
-                company_id=company_id,
-                reference_date=date(2022, 1, 1),
-                metrics=MonthlyMetrics(
-                    mau=[
-                        MAU(
-                            product_id="P001",
-                            product_name="TestPay",
-                            value=800000,
-                            date=date(2022, 1, 1),
-                            growthRate=None,
-                        ),
-                    ],
-                    patents=[
-                        Patent(
-                            level="B+",
-                            title="기본 결제 시스템",
-                            date=date(2022, 1, 1),
-                        ),
-                    ],
-                    finance=[
-                        Finance(
-                            year=2022,
-                            profit=5000000000,
-                            operatingProfit=4000000000,
-                            netProfit=3000000000,
-                        ),
-                    ],
-                    investments=[
-                        Investment(
-                            level="Series A",
-                            date=date(2022, 1, 1),
-                            amount=1000000000,
-                            investors=["VC Fund A"],
-                        ),
-                    ],
-                    organizations=[
-                        Organization(
-                            name="본사",
-                            date=date(2022, 1, 1),
-                            people_count=120,
-                            growth_rate=10.0,
-                        ),
-                    ],
-                ),
-            ),
-        ]
-
-    @pytest.fixture
-    def empty_metrics_snapshots(self, company_id):
-        """빈 메트릭 스냅샷"""
-        return [
-            CompanyMetricsSnapshot(
-                id=1,
-                company_id=company_id,
-                reference_date=date(2024, 1, 1),
-                metrics=MonthlyMetrics(
-                    mau=[],
-                    patents=[],
-                    finance=[],
-                    investments=[],
-                    organizations=[],
-                ),
-            ),
-        ]
-
-    def test_get_summary_with_full_data(
-        self, basic_company, company_aliases, full_metrics_snapshots
-    ):
-        """완전한 데이터를 가진 회사의 요약 정보 생성 테스트"""
-        # Given
-        aggregate = CompanyAggregate(
-            company=basic_company,
+        aggregate = CompanyAggregate.of(
+            company=company,
             company_aliases=company_aliases,
-            company_metrics_snapshots=full_metrics_snapshots,
+            company_metrics_snapshots=company_metrics_snapshots,
         )
 
-        # When
-        summary = aggregate.get_summary()
+        assert aggregate.company == company
+        assert aggregate.company_aliases == []
+        assert aggregate.company_metrics_snapshots == []
 
-        # Then
-        # 기본 회사 정보 검증
-        assert summary.name == "테스트 회사"
-        assert summary.name_en == "Test Company"
-        assert summary.industry == ["IT", "소프트웨어"]
-        assert summary.tags == ["tech", "스타트업"]
-        assert summary.stage == "Series A"
-        assert summary.business_description == "혁신적인 핀테크 회사"
-        assert summary.founded_date == date(2020, 1, 1)
-        assert summary.ipo_date is None
-        assert summary.company_age_years is not None
-        assert summary.is_startup is True
+    def test_create_aggregate_with_aliases(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
 
-        # 별칭 정보 검증 (중복 제거 확인)
-        expected_aliases = {"테스트 회사", "Test Company", "TestPay"}
-        assert set(summary.aliases) == expected_aliases
+        # Company 생성
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="네이버", employee_count=3000
+        )
+        company = Company.of(company_params)
+        company.id = company_id
 
-        # 메트릭 요약 정보 검증
-        metrics = summary.metrics_summary
-        
-        # 조직 정보 (최신 값과 성장률)
-        assert metrics.people_count == 150
-        assert metrics.people_growth_rate == 25.0  # (150-120)/120 * 100
-
-        # 재무 정보 (최신 값과 성장률)
-        assert metrics.profit == 10000000000
-        assert metrics.net_profit == 6000000000
-        assert metrics.profit_growth_rate == 100.0  # (10B-5B)/5B * 100
-        assert metrics.net_profit_growth_rate == 100.0  # (6B-3B)/3B * 100
-
-        # 투자 정보 (총합)
-        assert metrics.investment_amount == 3000000000  # 2B + 1B
-        assert set(metrics.investors) == {"VC Fund A", "Angel Investor B"}
-
-        # 특허 정보 (중복 제거됨)
-        assert len(metrics.patents) == 3
-        patent_titles = {p.title for p in metrics.patents}
-        assert "혁신적인 결제 기술" in patent_titles
-        assert "보안 알고리즘" in patent_titles
-        assert "기본 결제 시스템" in patent_titles
-
-        # MAU 정보 (최신 데이터만)
-        assert len(metrics.maus) == 2
-        mau_products = {m.product_name: m for m in metrics.maus}
-        assert "TestPay" in mau_products
-        assert "TestWallet" in mau_products
-        assert mau_products["TestPay"].value == 1000000
-        assert mau_products["TestPay"].growth_rate == 20.5
-        assert mau_products["TestWallet"].value == 500000
-        assert mau_products["TestWallet"].growth_rate == 15.0
-
-    def test_get_summary_with_empty_metrics(
-        self, basic_company, company_aliases, empty_metrics_snapshots
-    ):
-        """빈 메트릭 데이터를 가진 회사의 요약 정보 생성 테스트"""
-        # Given
-        aggregate = CompanyAggregate(
-            company=basic_company,
-            company_aliases=company_aliases,
-            company_metrics_snapshots=empty_metrics_snapshots,
+        # Aliases 생성
+        alias_params1 = CompanyAliasCreateParams(
+            company_id=company_id, alias="NAVER", alias_type="company_name"
+        )
+        alias_params2 = CompanyAliasCreateParams(
+            company_id=company_id, alias="네이버 블로그", alias_type="product_name"
         )
 
-        # When
-        summary = aggregate.get_summary()
+        company_aliases = [
+            CompanyAlias.of(alias_params1),
+            CompanyAlias.of(alias_params2),
+        ]
 
-        # Then
-        # 기본 회사 정보는 유지됨
-        assert summary.name == "테스트 회사"
-        assert summary.name_en == "Test Company"
-
-        # 빈 메트릭 요약 정보 검증
-        metrics = summary.metrics_summary
-        assert metrics.people_count == 0
-        assert metrics.people_growth_rate == 0.0
-        assert metrics.profit == 0
-        assert metrics.net_profit == 0
-        assert metrics.profit_growth_rate == 0.0
-        assert metrics.net_profit_growth_rate == 0.0
-        assert metrics.investment_amount == 0
-        assert metrics.investors == []
-        assert metrics.patents == []
-        assert metrics.maus == []
-
-    def test_get_summary_with_no_metrics_snapshots(self, basic_company, company_aliases):
-        """메트릭 스냅샷이 없는 회사의 요약 정보 생성 테스트"""
-        # Given
-        aggregate = CompanyAggregate(
-            company=basic_company,
+        aggregate = CompanyAggregate.of(
+            company=company,
             company_aliases=company_aliases,
             company_metrics_snapshots=[],
         )
 
-        # When
-        summary = aggregate.get_summary()
+        assert aggregate.company.name == "네이버"
+        assert len(aggregate.company_aliases) == 2
+        assert aggregate.company_aliases[0].alias == "NAVER"
+        assert aggregate.company_aliases[1].alias == "네이버 블로그"
 
-        # Then
-        # 기본 회사 정보는 유지됨
-        assert summary.name == "테스트 회사"
-        
-        # 빈 메트릭 요약 정보가 반환됨
-        metrics = summary.metrics_summary
-        assert metrics.people_count == 0
-        assert metrics.people_growth_rate == 0.0
-        assert metrics.profit == 0
-        assert metrics.net_profit == 0
-        assert metrics.profit_growth_rate == 0.0
-        assert metrics.net_profit_growth_rate == 0.0
-        assert metrics.investment_amount == 0
-        assert metrics.investors == []
-        assert metrics.patents == []
-        assert metrics.maus == []
+    def test_calculate_people_metrics_no_snapshots(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
 
-    def test_get_summary_with_single_snapshot(self, basic_company, company_aliases, company_id):
-        """단일 스냅샷만 있는 경우 성장률 계산 테스트"""
-        # Given
-        single_snapshot = [
-            CompanyMetricsSnapshot(
-                id=1,
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="테스트회사", employee_count=100
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        aggregate = CompanyAggregate.of(
+            company=company, company_aliases=[], company_metrics_snapshots=[]
+        )
+
+        with pytest.raises(ValueError, match="No company metrics snapshots available"):
+            aggregate.calculate_people_metrics()
+
+    def test_calculate_people_metrics_single_snapshot(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
+
+        # Company 생성
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="테스트회사", employee_count=100
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        # 조직 데이터가 있는 스냅샷 생성
+        organization = Organization(
+            name="전체", date=date(2023, 12, 31), people_count=150, growth_rate=15.0
+        )
+
+        metrics = MonthlyMetrics(
+            mau=[], patents=[], finance=[], investments=[], organizations=[organization]
+        )
+
+        snapshot_params = CompanyMetricSnapshotCreateParams(
+            company_id=company_id, reference_date=date(2023, 12, 31), metrics=metrics
+        )
+        snapshot = CompanyMetricsSnapshot.of(snapshot_params)
+
+        aggregate = CompanyAggregate.of(
+            company=company, company_aliases=[], company_metrics_snapshots=[snapshot]
+        )
+
+        people_count, growth_rate = aggregate.calculate_people_metrics()
+
+        assert people_count == 150
+        assert growth_rate == 0.0  # 단일 스냅샷이므로 성장률은 0
+
+    def test_calculate_people_metrics_multiple_snapshots(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
+
+        # Company 생성
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="성장회사", employee_count=100
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        # 첫 번째 스냅샷 (과거)
+        old_organization = Organization(
+            name="전체", date=date(2023, 1, 31), people_count=100, growth_rate=0.0
+        )
+        old_metrics = MonthlyMetrics(
+            mau=[],
+            patents=[],
+            finance=[],
+            investments=[],
+            organizations=[old_organization],
+        )
+        old_snapshot = CompanyMetricsSnapshot.of(
+            CompanyMetricSnapshotCreateParams(
                 company_id=company_id,
-                reference_date=date(2024, 1, 1),
-                metrics=MonthlyMetrics(
-                    mau=[],
-                    patents=[],
-                    finance=[
-                        Finance(
-                            year=2024,
-                            profit=1000000000,
-                            operatingProfit=800000000,
-                            netProfit=600000000,
-                        ),
-                    ],
-                    investments=[],
-                    organizations=[
-                        Organization(
-                            name="본사",
-                            date=date(2024, 1, 1),
-                            people_count=100,
-                            growth_rate=0.0,
-                        ),
-                    ],
-                ),
+                reference_date=date(2023, 1, 31),
+                metrics=old_metrics,
+            )
+        )
+
+        # 두 번째 스냅샷 (최신)
+        new_organization = Organization(
+            name="전체", date=date(2023, 12, 31), people_count=200, growth_rate=20.0
+        )
+        new_metrics = MonthlyMetrics(
+            mau=[],
+            patents=[],
+            finance=[],
+            investments=[],
+            organizations=[new_organization],
+        )
+        new_snapshot = CompanyMetricsSnapshot.of(
+            CompanyMetricSnapshotCreateParams(
+                company_id=company_id,
+                reference_date=date(2023, 12, 31),
+                metrics=new_metrics,
+            )
+        )
+
+        aggregate = CompanyAggregate.of(
+            company=company,
+            company_aliases=[],
+            company_metrics_snapshots=[new_snapshot, old_snapshot],  # 최신이 첫 번째
+        )
+
+        people_count, growth_rate = aggregate.calculate_people_metrics()
+
+        assert people_count == 200
+        assert growth_rate == 100.0  # (200-100)/100 * 100 = 100%
+
+    def test_calculate_finance_metrics_single_snapshot(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
+
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="재무회사", employee_count=100
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        # 재무 데이터가 있는 스냅샷 생성
+        finance = Finance(
+            year=2023, profit=1000000000, operatingProfit=800000000, netProfit=600000000
+        )
+
+        metrics = MonthlyMetrics(
+            mau=[], patents=[], finance=[finance], investments=[], organizations=[]
+        )
+
+        snapshot = CompanyMetricsSnapshot.of(
+            CompanyMetricSnapshotCreateParams(
+                company_id=company_id,
+                reference_date=date(2023, 12, 31),
+                metrics=metrics,
+            )
+        )
+
+        aggregate = CompanyAggregate.of(
+            company=company, company_aliases=[], company_metrics_snapshots=[snapshot]
+        )
+
+        profit, net_profit, profit_growth, net_profit_growth = (
+            aggregate.calculate_finance_metrics()
+        )
+
+        assert profit == 1000000000
+        assert net_profit == 600000000
+        assert profit_growth == 0.0
+        assert net_profit_growth == 0.0
+
+    def test_calculate_investment_metrics(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
+
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="투자회사", employee_count=100
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        # 투자 데이터가 있는 스냅샷들 생성
+        investment1 = Investment(
+            level="Seed",
+            date=date(2023, 3, 15),
+            amount=1000000000,
+            investors=["벤처캐피탈A", "엔젤투자자B"],
+        )
+
+        investment2 = Investment(
+            level="Series A",
+            date=date(2023, 9, 20),
+            amount=5000000000,
+            investors=["벤처캐피탈A", "투자회사C"],
+        )
+
+        metrics1 = MonthlyMetrics(
+            mau=[], patents=[], finance=[], investments=[investment1], organizations=[]
+        )
+        metrics2 = MonthlyMetrics(
+            mau=[], patents=[], finance=[], investments=[investment2], organizations=[]
+        )
+
+        snapshot1 = CompanyMetricsSnapshot.of(
+            CompanyMetricSnapshotCreateParams(
+                company_id=company_id,
+                reference_date=date(2023, 3, 31),
+                metrics=metrics1,
+            )
+        )
+        snapshot2 = CompanyMetricsSnapshot.of(
+            CompanyMetricSnapshotCreateParams(
+                company_id=company_id,
+                reference_date=date(2023, 9, 30),
+                metrics=metrics2,
+            )
+        )
+
+        aggregate = CompanyAggregate.of(
+            company=company,
+            company_aliases=[],
+            company_metrics_snapshots=[snapshot2, snapshot1],
+        )
+
+        total_amount, investors, levels = aggregate.calculate_investment_metrics()
+
+        assert total_amount == 6000000000  # 1B + 5B
+        assert set(investors) == {"벤처캐피탈A", "엔젤투자자B", "투자회사C"}
+        assert set(levels) == {"Seed", "Series A"}
+
+    def test_calculate_patent_metrics(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
+
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="특허회사", employee_count=100
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        # 특허 데이터가 있는 스냅샷 생성
+        patent1 = Patent(level="국내특허", title="AI 알고리즘", date=date(2023, 6, 15))
+        patent2 = Patent(
+            level="국제특허", title="데이터 처리 방법", date=date(2023, 9, 20)
+        )
+
+        metrics = MonthlyMetrics(
+            mau=[],
+            patents=[patent1, patent2],
+            finance=[],
+            investments=[],
+            organizations=[],
+        )
+
+        snapshot = CompanyMetricsSnapshot.of(
+            CompanyMetricSnapshotCreateParams(
+                company_id=company_id,
+                reference_date=date(2023, 12, 31),
+                metrics=metrics,
+            )
+        )
+
+        aggregate = CompanyAggregate.of(
+            company=company, company_aliases=[], company_metrics_snapshots=[snapshot]
+        )
+
+        patents = aggregate.calculate_patent_metrics()
+
+        assert len(patents) == 2
+        assert ("국내특허", "AI 알고리즘") in patents
+        assert ("국제특허", "데이터 처리 방법") in patents
+
+    def test_calculate_mau_metrics(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
+
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="서비스회사", employee_count=100
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        # MAU 데이터가 있는 스냅샷 생성
+        mau1 = MAU(
+            product_id="service_1",
+            product_name="메인서비스",
+            value=1000000,
+            date=date(2023, 12, 31),
+            growthRate=15.5,
+        )
+        mau2 = MAU(
+            product_id="service_2",
+            product_name="서브서비스",
+            value=500000,
+            date=date(2023, 12, 31),
+            growthRate=25.0,
+        )
+
+        metrics = MonthlyMetrics(
+            mau=[mau1, mau2], patents=[], finance=[], investments=[], organizations=[]
+        )
+
+        snapshot = CompanyMetricsSnapshot.of(
+            CompanyMetricSnapshotCreateParams(
+                company_id=company_id,
+                reference_date=date(2023, 12, 31),
+                metrics=metrics,
+            )
+        )
+
+        aggregate = CompanyAggregate.of(
+            company=company, company_aliases=[], company_metrics_snapshots=[snapshot]
+        )
+
+        mau_metrics = aggregate.calculate_mau_metrics()
+
+        assert len(mau_metrics) == 2
+        assert ("메인서비스", 1000000, 15.5) in mau_metrics
+        assert ("서브서비스", 500000, 25.0) in mau_metrics
+
+    def test_calculate_growth_rate_helper(self):
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
+
+        company_params = CompanyCreateParams(
+            external_id="test_company", name="테스트회사", employee_count=100
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        aggregate = CompanyAggregate.of(
+            company=company, company_aliases=[], company_metrics_snapshots=[]
+        )
+
+        # 정상적인 성장률 계산
+        assert aggregate._calculate_growth_rate(100, 150) == 50.0
+        assert aggregate._calculate_growth_rate(200, 100) == -50.0
+
+        # 초기값이 0인 경우
+        assert aggregate._calculate_growth_rate(0, 100) == 0.0
+
+        # 동일한 값인 경우
+        assert aggregate._calculate_growth_rate(100, 100) == 0.0
+
+    def test_comprehensive_aggregate(self):
+        """모든 구성 요소가 포함된 종합 테스트"""
+        company_id = UUID("12345678-1234-5678-9abc-123456789012")
+
+        # Company
+        company_params = CompanyCreateParams(
+            external_id="comprehensive_company",
+            name="종합회사",
+            name_en="Comprehensive Company",
+            industry=["Technology", "Finance"],
+            tags=["innovation", "growth"],
+            employee_count=500,
+            stage="Series B",
+            business_description="종합 기술 회사",
+            founded_date=date(2020, 1, 15),
+            ipo_date=date(2023, 6, 30),
+            total_investment=10000000000,
+            origin_file_path="/data/comprehensive.json",
+        )
+        company = Company.of(company_params)
+        company.id = company_id
+
+        # Aliases
+        aliases = [
+            CompanyAlias.of(
+                CompanyAliasCreateParams(
+                    company_id=company_id, alias="CompCorp", alias_type="company_name"
+                )
+            ),
+            CompanyAlias.of(
+                CompanyAliasCreateParams(
+                    company_id=company_id, alias="CompApp", alias_type="product_name"
+                )
             ),
         ]
 
-        aggregate = CompanyAggregate(
-            company=basic_company,
-            company_aliases=company_aliases,
-            company_metrics_snapshots=single_snapshot,
+        # Comprehensive metrics
+        comprehensive_metrics = MonthlyMetrics(
+            mau=[
+                MAU(
+                    product_id="p1",
+                    product_name="앱A",
+                    value=2000000,
+                    date=date(2023, 12, 31),
+                    growthRate=20.0,
+                )
+            ],
+            patents=[
+                Patent(level="국제특허", title="혁신기술", date=date(2023, 8, 15))
+            ],
+            finance=[
+                Finance(
+                    year=2023,
+                    profit=20000000000,
+                    operatingProfit=15000000000,
+                    netProfit=10000000000,
+                )
+            ],
+            investments=[
+                Investment(
+                    level="Series B",
+                    date=date(2023, 5, 10),
+                    amount=8000000000,
+                    investors=["메가VC"],
+                )
+            ],
+            organizations=[
+                Organization(
+                    name="전체",
+                    date=date(2023, 12, 31),
+                    people_count=500,
+                    growth_rate=25.0,
+                )
+            ],
         )
 
-        # When
-        summary = aggregate.get_summary()
-
-        # Then
-        # 성장률은 0.0이어야 함 (비교할 이전 데이터가 없음)
-        metrics = summary.metrics_summary
-        assert metrics.people_count == 100
-        assert metrics.people_growth_rate == 0.0
-        assert metrics.profit == 1000000000
-        assert metrics.profit_growth_rate == 0.0
-        assert metrics.net_profit_growth_rate == 0.0
-
-    def test_get_summary_with_duplicate_aliases(self, basic_company, company_id):
-        """중복된 별칭이 있는 경우 중복 제거 테스트"""
-        # Given
-        duplicate_aliases = [
-            CompanyAlias(
+        snapshot = CompanyMetricsSnapshot.of(
+            CompanyMetricSnapshotCreateParams(
                 company_id=company_id,
-                alias="테스트 회사",
-                alias_type="name",
-                id=1,
-            ),
-            CompanyAlias(
-                company_id=company_id,
-                alias="테스트 회사",  # 중복
-                alias_type="name",
-                id=2,
-            ),
-            CompanyAlias(
-                company_id=company_id,
-                alias="TestPay",
-                alias_type="product",
-                id=3,
-            ),
-        ]
-
-        aggregate = CompanyAggregate(
-            company=basic_company,
-            company_aliases=duplicate_aliases,
-            company_metrics_snapshots=[],
+                reference_date=date(2023, 12, 31),
+                metrics=comprehensive_metrics,
+            )
         )
 
-        # When
-        summary = aggregate.get_summary()
-
-        # Then
-        # 중복 제거 확인
-        expected_aliases = {"테스트 회사", "TestPay"}
-        assert set(summary.aliases) == expected_aliases
-        assert len(summary.aliases) == 2
-
-    def test_get_summary_with_none_values_in_finance(self, basic_company, company_aliases, company_id):
-        """Finance의 netProfit이 None인 경우 처리 테스트"""
-        # Given
-        snapshots_with_none_netprofit = [
-            CompanyMetricsSnapshot(
-                id=1,
-                company_id=company_id,
-                reference_date=date(2024, 1, 1),
-                metrics=MonthlyMetrics(
-                    mau=[],
-                    patents=[],
-                    finance=[
-                        Finance(
-                            year=2024,
-                            profit=1000000000,
-                            operatingProfit=800000000,
-                            netProfit=None,  # None 값
-                        ),
-                    ],
-                    investments=[],
-                    organizations=[],
-                ),
-            ),
-        ]
-
-        aggregate = CompanyAggregate(
-            company=basic_company,
-            company_aliases=company_aliases,
-            company_metrics_snapshots=snapshots_with_none_netprofit,
+        aggregate = CompanyAggregate.of(
+            company=company,
+            company_aliases=aliases,
+            company_metrics_snapshots=[snapshot],
         )
 
-        # When
-        summary = aggregate.get_summary()
+        # 모든 메트릭 검증
+        assert aggregate.company.name == "종합회사"
+        assert len(aggregate.company_aliases) == 2
+        assert len(aggregate.company_metrics_snapshots) == 1
 
-        # Then
-        # None 값이 0으로 처리되어야 함
-        metrics = summary.metrics_summary
-        assert metrics.net_profit == 0
+        # 각종 메트릭 계산 검증
+        people_count, _ = aggregate.calculate_people_metrics()
+        assert people_count == 500
 
-    def test_get_summary_with_mau_none_growth_rate(self, basic_company, company_aliases, company_id):
-        """MAU의 growthRate이 None인 경우 처리 테스트"""
-        # Given
-        snapshots_with_none_growth_rate = [
-            CompanyMetricsSnapshot(
-                id=1,
-                company_id=company_id,
-                reference_date=date(2024, 1, 1),
-                metrics=MonthlyMetrics(
-                    mau=[
-                        MAU(
-                            product_id="P001",
-                            product_name="TestPay",
-                            value=1000000,
-                            date=date(2024, 1, 1),
-                            growthRate=None,  # None 값
-                        ),
-                    ],
-                    patents=[],
-                    finance=[],
-                    investments=[],
-                    organizations=[],
-                ),
-            ),
-        ]
+        profit, net_profit, _, _ = aggregate.calculate_finance_metrics()
+        assert profit == 20000000000
+        assert net_profit == 10000000000
 
-        aggregate = CompanyAggregate(
-            company=basic_company,
-            company_aliases=company_aliases,
-            company_metrics_snapshots=snapshots_with_none_growth_rate,
-        )
+        total_investment, investors, levels = aggregate.calculate_investment_metrics()
+        assert total_investment == 8000000000
+        assert "메가VC" in investors
 
-        # When
-        summary = aggregate.get_summary()
+        patents = aggregate.calculate_patent_metrics()
+        assert len(patents) == 1
+        assert ("국제특허", "혁신기술") in patents
 
-        # Then
-        # None 값이 0.0으로 처리되어야 함
-        metrics = summary.metrics_summary
-        assert len(metrics.maus) == 1
-        assert metrics.maus[0].growth_rate == 0.0
+        mau_metrics = aggregate.calculate_mau_metrics()
+        assert len(mau_metrics) == 1
+        assert ("앱A", 2000000, 20.0) in mau_metrics
 
-    def test_get_summary_duplicate_patents(self, basic_company, company_aliases, company_id):
-        """중복 특허 제거 테스트 (level + title 조합으로 구분)"""
-        # Given
-        snapshots_with_duplicate_patents = [
-            CompanyMetricsSnapshot(
-                id=1,
-                company_id=company_id,
-                reference_date=date(2024, 1, 1),
-                metrics=MonthlyMetrics(
-                    mau=[],
-                    patents=[
-                        Patent(
-                            level="A",
-                            title="결제 기술",
-                            date=date(2024, 1, 1),
-                        ),
-                        Patent(
-                            level="A",
-                            title="결제 기술",  # 완전히 동일한 특허
-                            date=date(2023, 1, 1),  # 날짜는 다름
-                        ),
-                        Patent(
-                            level="B",
-                            title="결제 기술",  # 제목은 같지만 레벨이 다름
-                            date=date(2024, 1, 1),
-                        ),
-                    ],
-                    finance=[],
-                    investments=[],
-                    organizations=[],
-                ),
-            ),
-        ]
-
-        aggregate = CompanyAggregate(
-            company=basic_company,
-            company_aliases=company_aliases,
-            company_metrics_snapshots=snapshots_with_duplicate_patents,
-        )
-
-        # When
-        summary = aggregate.get_summary()
-
-        # Then
-        # level + title 조합으로 중복 제거되어 2개만 남아야 함
-        metrics = summary.metrics_summary
-        assert len(metrics.patents) == 2
-        
-        patent_keys = {(p.level, p.title) for p in metrics.patents}
-        expected_keys = {("A", "결제 기술"), ("B", "결제 기술")}
-        assert patent_keys == expected_keys

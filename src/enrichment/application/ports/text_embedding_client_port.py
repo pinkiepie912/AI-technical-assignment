@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List
 
 
-class EmbeddingClient(ABC):
+class TextEmbeddingClientPort(ABC):
     """Abstract interface for embedding generation clients."""
 
     @abstractmethod

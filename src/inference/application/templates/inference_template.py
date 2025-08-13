@@ -79,25 +79,25 @@ class TalentInferencePromptTemplates:
             {% endif %}
 
             **재직 기간 중 회사 성장 지표**:
-            - 직원 수: {{ company.metrics_summary.people_count }}명 
-            (성장률: {{ "%.1f" | format(company.metrics_summary.people_growth_rate) }}%)
-            - 매출: {{ "{:,}".format(company.metrics_summary.profit) }}원 
-            (성장률: {{ "%.1f" | format(company.metrics_summary.profit_growth_rate) }}%)
-            - 순이익: {{ "{:,}".format(company.metrics_summary.net_profit) }}원 
-            (성장률: {{ "%.1f" | format(company.metrics_summary.net_profit_growth_rate) }}%)
-            - 투자 유치액: {{ "{:,}".format(company.metrics_summary.investment_amount) }}원
-            - 주요 투자자: {{ company.metrics_summary.investors | join(', ') }}
+            - 직원 수: {{ company.metrics.people_count }}명 
+            (성장률: {{ "%.1f" | format(company.metrics.people_growth_rate) }}%)
+            - 매출: {{ "{:,}".format(company.metrics.profit) }}원 
+            (성장률: {{ "%.1f" | format(company.metrics.profit_growth_rate) }}%)
+            - 순이익: {{ "{:,}".format(company.metrics.net_profit) }}원 
+            (성장률: {{ "%.1f" | format(company.metrics.net_profit_growth_rate) }}%)
+            - 투자 유치액: {{ "{:,}".format(company.metrics.investment_amount) }}원
+            - 주요 투자자: {{ company.metrics.investors | join(', ') }}
 
-            {% if company.metrics_summary.patents %}
+            {% if company.metrics.patents %}
             **보유 특허**:
-            {% for patent in company.metrics_summary.patents %}
+            {% for patent in company.metrics.patents %}
             - {{ patent.level }}: {{ patent.title }}
             {% endfor %}
             {% endif %}
 
-            {% if company.metrics_summary.maus %}
+            {% if company.metrics.maus %}
             **MAU 정보**:
-            {% for mau in company.metrics_summary.maus %}
+            {% for mau in company.metrics.maus %}
             - {{ mau.product_name }}: {{ "{:,}".format(mau.value) }}명 
             (성장률: {{ "%.1f" | format(mau.growth_rate) }}%)
             {% endfor %}

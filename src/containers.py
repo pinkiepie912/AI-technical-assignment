@@ -4,11 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from db.db import ReadSessionManager, WriteSessionManager
 from enrichment.application.services.company_info_reader import CompanyInfoReader
 from enrichment.application.services.company_info_writer import CompanyInfoWriter
+from enrichment.infrastructure.embeddings.openai import OpenAIEmbeddingClient
 from enrichment.infrastructure.readers.forest_of_hyuksin_reader import (
     ForestOfHyuksinReader,
 )
 from enrichment.infrastructure.repositories.company_repository import CompanyRepository
 from inference.application.services.talent_infer import TalentInference
+from inference.infrastructure.adapters.company_search_adapter import (
+    CompanyContextSearchAdapter,
+)
 from inference.infrastructure.llm.openai import OpenAIClient
 
 __all__ = ["Container"]
@@ -90,6 +94,12 @@ class Container(containers.DeclarativeContainer):
         forestofhyucksin=forest_hyucksin_reader,
     )
 
+    # # embedding clients
+    openai_embedding_client = providers.Factory(
+        OpenAIEmbeddingClient,
+        api_key=config.OPENAI.API_KEY,
+    )
+
     # # services
     company_info_writer = providers.Factory(
         CompanyInfoWriter,
@@ -99,6 +109,7 @@ class Container(containers.DeclarativeContainer):
     company_info_reader = providers.Factory(
         CompanyInfoReader,
         repository=company_repository,
+        embedding_client=openai_embedding_client,
     )
 
     # Inference
@@ -108,9 +119,15 @@ class Container(containers.DeclarativeContainer):
         api_key=config.OPENAI.API_KEY,
     )
 
+    # adapters
+    company_context_search = providers.Factory(
+        CompanyContextSearchAdapter,
+        company_search_service=company_info_reader,
+    )
+
     # services
     talent_inference_service = providers.Factory(
         TalentInference,
-        company_info_reader=company_info_reader,
+        company_context_search=company_context_search,
         llm_client=openai_client,
     )

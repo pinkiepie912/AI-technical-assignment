@@ -1,17 +1,17 @@
 from typing import List
 from unittest.mock import AsyncMock, Mock
 
-import pytest
 import openai
+import pytest
 from openai.types import CreateEmbeddingResponse
-from openai.types.embedding import Embedding
 from openai.types.create_embedding_response import Usage
+from openai.types.embedding import Embedding
 
 from enrichment.application.exceptions.embedding_exception import (
     EmbeddingConnectionError,
     EmbeddingGenerationError,
 )
-from enrichment.infrastructure.embeddings.openai import OpenAIEmbedding
+from enrichment.infrastructure.embeddings.openai import OpenAIEmbeddingClient
 
 
 class TestOpenAIEmbedding:
@@ -25,7 +25,7 @@ class TestOpenAIEmbedding:
     @pytest.fixture
     def openai_embedding(self, mock_client):
         """Create OpenAIEmbedding instance with mocked client."""
-        embedding_client = OpenAIEmbedding(api_key="test-api-key")
+        embedding_client = OpenAIEmbeddingClient(api_key="test-api-key")
         embedding_client.client = mock_client
         return embedding_client
 
@@ -37,16 +37,18 @@ class TestOpenAIEmbedding:
             Embedding(embedding=emb, index=i, object="embedding")
             for i, emb in enumerate(embeddings)
         ]
-        
+
         return CreateEmbeddingResponse(
             data=embedding_objects,
             model=model,
             object="list",
-            usage=Usage(prompt_tokens=10, total_tokens=10)
+            usage=Usage(prompt_tokens=10, total_tokens=10),
         )
 
     @pytest.mark.asyncio
-    async def test_successful_single_text_embedding(self, openai_embedding, mock_client):
+    async def test_successful_single_text_embedding(
+        self, openai_embedding, mock_client
+    ):
         """Test successful embedding generation for single text."""
         # Arrange
         texts = ["Hello world"]
@@ -65,15 +67,13 @@ class TestOpenAIEmbedding:
         )
 
     @pytest.mark.asyncio
-    async def test_successful_multiple_text_embedding(self, openai_embedding, mock_client):
+    async def test_successful_multiple_text_embedding(
+        self, openai_embedding, mock_client
+    ):
         """Test successful embedding generation for multiple texts."""
         # Arrange
         texts = ["First text", "Second text", "Third text"]
-        expected_embeddings = [
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6],
-            [0.7, 0.8, 0.9]
-        ]
+        expected_embeddings = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
         mock_response = self.create_mock_embedding_response(expected_embeddings)
         mock_client.embeddings.create = AsyncMock(return_value=mock_response)
 
@@ -105,7 +105,7 @@ class TestOpenAIEmbedding:
         # Act & Assert
         with pytest.raises(EmbeddingGenerationError) as exc_info:
             await openai_embedding.generate_embeddings(texts)
-        
+
         assert "All input texts are empty or None" in str(exc_info.value)
         assert exc_info.value.text == str(texts)
 
@@ -128,7 +128,7 @@ class TestOpenAIEmbedding:
         assert result[2] == []  # Empty for second empty text
         assert result[3] == expected_embeddings[1]  # Second valid embedding
         assert result[4] == []  # Empty for third empty text
-        
+
         mock_client.embeddings.create.assert_called_once_with(
             input=["Valid text", "Another valid text"], model="text-embedding-3-small"
         )
@@ -149,7 +149,7 @@ class TestOpenAIEmbedding:
         # Act & Assert
         with pytest.raises(EmbeddingConnectionError) as exc_info:
             await openai_embedding.generate_embeddings(texts)
-        
+
         assert exc_info.value.service_name == "OpenAI"
         assert "Authentication failed" in str(exc_info.value)
 
@@ -162,14 +162,16 @@ class TestOpenAIEmbedding:
         mock_response.status_code = 429
         mock_client.embeddings.create = AsyncMock(
             side_effect=openai.RateLimitError(
-                "Rate limit exceeded", response=mock_response, body="Rate limit exceeded"
+                "Rate limit exceeded",
+                response=mock_response,
+                body="Rate limit exceeded",
             )
         )
 
         # Act & Assert
         with pytest.raises(EmbeddingConnectionError) as exc_info:
             await openai_embedding.generate_embeddings(texts)
-        
+
         assert exc_info.value.service_name == "OpenAI"
         assert "Rate limit exceeded" in str(exc_info.value)
 
@@ -185,7 +187,7 @@ class TestOpenAIEmbedding:
         # Act & Assert
         with pytest.raises(EmbeddingConnectionError) as exc_info:
             await openai_embedding.generate_embeddings(texts)
-        
+
         assert exc_info.value.service_name == "OpenAI"
         assert "API connection failed" in str(exc_info.value)
 
@@ -204,7 +206,7 @@ class TestOpenAIEmbedding:
         # Act & Assert
         with pytest.raises(EmbeddingGenerationError) as exc_info:
             await openai_embedding.generate_embeddings(texts)
-        
+
         assert exc_info.value.text == str(texts)
         assert "OpenAI API error" in str(exc_info.value)
 
@@ -220,7 +222,7 @@ class TestOpenAIEmbedding:
         # Act & Assert
         with pytest.raises(EmbeddingGenerationError) as exc_info:
             await openai_embedding.generate_embeddings(texts)
-        
+
         assert exc_info.value.text == str(texts)
         assert "Unexpected error" in str(exc_info.value)
 
@@ -233,14 +235,14 @@ class TestOpenAIEmbedding:
             data=[],
             model="text-embedding-3-small",
             object="list",
-            usage=Usage(prompt_tokens=10, total_tokens=10)
+            usage=Usage(prompt_tokens=10, total_tokens=10),
         )
         mock_client.embeddings.create = AsyncMock(return_value=mock_response)
 
         # Act & Assert
         with pytest.raises(EmbeddingGenerationError) as exc_info:
             await openai_embedding.generate_embeddings(texts)
-        
+
         assert exc_info.value.text == str(texts)
         assert "OpenAI returned unexpected number of embeddings" in str(exc_info.value)
 
@@ -257,7 +259,7 @@ class TestOpenAIEmbedding:
         # Act & Assert
         with pytest.raises(EmbeddingGenerationError) as exc_info:
             await openai_embedding.generate_embeddings(texts)
-        
+
         assert exc_info.value.text == str(texts)
         assert "OpenAI returned unexpected number of embeddings" in str(exc_info.value)
 
@@ -266,12 +268,16 @@ class TestOpenAIEmbedding:
         """Test OpenAIEmbedding with custom model parameter."""
         # Arrange
         custom_model = "text-embedding-ada-002"
-        embedding_client = OpenAIEmbedding(api_key="test-api-key", model=custom_model)
+        embedding_client = OpenAIEmbeddingClient(
+            api_key="test-api-key", model=custom_model
+        )
         embedding_client.client = mock_client
-        
+
         texts = ["Test text"]
         expected_embedding = [0.1, 0.2, 0.3]
-        mock_response = self.create_mock_embedding_response([expected_embedding], custom_model)
+        mock_response = self.create_mock_embedding_response(
+            [expected_embedding], custom_model
+        )
         mock_client.embeddings.create = AsyncMock(return_value=mock_response)
 
         # Act
@@ -287,14 +293,16 @@ class TestOpenAIEmbedding:
     async def test_initialization_with_default_model(self):
         """Test OpenAIEmbedding initialization with default model."""
         # Act
-        embedding_client = OpenAIEmbedding(api_key="test-api-key")
+        embedding_client = OpenAIEmbeddingClient(api_key="test-api-key")
 
         # Assert
         assert embedding_client.model == "text-embedding-3-small"
         assert embedding_client.client is not None
 
     @pytest.mark.asyncio
-    async def test_text_preprocessing_whitespace_stripping(self, openai_embedding, mock_client):
+    async def test_text_preprocessing_whitespace_stripping(
+        self, openai_embedding, mock_client
+    ):
         """Test that input texts are properly stripped of whitespace."""
         # Arrange
         texts = ["  Text with spaces  ", "\tTabbed text\n", " Normal text"]
@@ -310,8 +318,8 @@ class TestOpenAIEmbedding:
         assert result == expected_embeddings
         # Verify that the API was called with stripped texts
         mock_client.embeddings.create.assert_called_once_with(
-            input=["Text with spaces", "Tabbed text", "Normal text"], 
-            model="text-embedding-3-small"
+            input=["Text with spaces", "Tabbed text", "Normal text"],
+            model="text-embedding-3-small",
         )
 
     @pytest.mark.asyncio
@@ -319,7 +327,7 @@ class TestOpenAIEmbedding:
         """Test processing of large batch of texts."""
         # Arrange
         texts = [f"Text number {i}" for i in range(100)]
-        expected_embeddings = [[float(i), float(i+1)] for i in range(100)]
+        expected_embeddings = [[float(i), float(i + 1)] for i in range(100)]
         mock_response = self.create_mock_embedding_response(expected_embeddings)
         mock_client.embeddings.create = AsyncMock(return_value=mock_response)
 
@@ -332,3 +340,4 @@ class TestOpenAIEmbedding:
         mock_client.embeddings.create.assert_called_once_with(
             input=texts, model="text-embedding-3-small"
         )
+

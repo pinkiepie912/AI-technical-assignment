@@ -1,19 +1,19 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.db import ReadSessionManager, WriteSessionManager
-from enrichment.application.dtos.company import (
-    GetCompaniesMetricsSnapshotsPram,
-)
 from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
 from enrichment.domain.entities.company import Company
 from enrichment.domain.entities.company_alias import CompanyAlias
 from enrichment.domain.entities.company_metrics_snapshot import CompanyMetricsSnapshot
+from enrichment.domain.repositories.company_repository_port import CompanyRepositoryPort
+from enrichment.domain.specs.company_spec import CompanySearchParam
 from enrichment.domain.vos.metrics import MonthlyMetrics
 from enrichment.infrastructure.exceptions.repository_exception import (
     DuplicatedCompanyError,
@@ -23,10 +23,16 @@ from enrichment.infrastructure.orm.company_alias import CompanyAlias as CompanyA
 from enrichment.infrastructure.orm.company_snapshot import (
     CompanyMetricsSnapshot as CompanyMetricsSnapshotOrm,
 )
-from inference.application.dtos.infer import GetCompaniesParam
 
 
-class CompanyRepository:
+@dataclass
+class GetCompaniesMetricsSnapshotsPram:
+    company_id: UUID
+    start_date: date
+    end_date: Optional[date] = None
+
+
+class CompanyRepository(CompanyRepositoryPort):
     def __init__(
         self,
         write_session_manager: WriteSessionManager,
@@ -78,9 +84,9 @@ class CompanyRepository:
                 session.add(snapshot_orm)
 
     async def get_companies(
-        self, params_list: List[GetCompaniesParam]
+        self, params: List[CompanySearchParam]
     ) -> List[CompanyAggregate]:
-        if not params_list:
+        if not params:
             return []
 
         company_orms = []
@@ -88,13 +94,13 @@ class CompanyRepository:
         alias_orm_map = defaultdict(list)
         async with self.read_session_manager as session:
             aliases_map = await self._get_aliases_map_by(
-                [param.alias for param in params_list], session
+                [param.alias for param in params], session
             )
 
             company_ids = []
             metrics_params = []
-            for params in params_list:
-                alias_orm = aliases_map.get(params.alias)
+            for param in params:
+                alias_orm = aliases_map.get(param.alias)
                 if not alias_orm:
                     continue
 
@@ -104,8 +110,8 @@ class CompanyRepository:
                 metrics_params.append(
                     GetCompaniesMetricsSnapshotsPram(
                         company_id=alias_orm.company_id,
-                        start_date=params.start_date,
-                        end_date=params.end_date,
+                        start_date=param.start_date,
+                        end_date=param.end_date,
                     )
                 )
 

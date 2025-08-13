@@ -63,16 +63,3 @@ class Company(BaseModel):
             total_investment=params.total_investment,
             origin_file_path=params.origin_file_path,
         )
-
-    def get_company_age_years(self) -> Optional[int]:
-        """회사 설립일을 기준으로 회사 연령(년) 계산"""
-        if not self.founded_date:
-            return None
-
-        today = date.today()
-        return today.year - self.founded_date.year
-
-    def is_startup(self) -> bool:
-        """스타트업 여부 판단 - 설립 10년 이내 회사를 스타트업으로 정의"""
-        age = self.get_company_age_years()
-        return age is not None and age <= 10

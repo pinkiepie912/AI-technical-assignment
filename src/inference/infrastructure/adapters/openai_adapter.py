@@ -1,9 +1,10 @@
 from openai import AsyncOpenAI
 
+from inference.application.ports.llm_port import LlmClientPort
 from src.inference.domain.vos.openai_models import LLMModel
 
 
-class OpenAIClient:
+class OpenAIClient(LlmClientPort):
     """
     OpenAI API를 직접 호출하는 LLM 클라이언트 구현체
     """

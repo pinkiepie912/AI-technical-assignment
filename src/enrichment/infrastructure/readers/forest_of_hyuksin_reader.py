@@ -5,12 +5,6 @@ from pathlib import Path
 from typing import Dict, List, Union
 from uuid import UUID, uuid4
 
-from enrichment.application.exceptions.reader_exception import (
-    ReaderEncodingError,
-    ReaderInvalidFormatError,
-    ReaderValidationError,
-)
-from enrichment.application.interfaces.reader_interface import JSONDataReader
 from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
 from enrichment.domain.entities.company import Company, CompanyCreateParams
 from enrichment.domain.entities.company_alias import (
@@ -21,6 +15,12 @@ from enrichment.domain.entities.company_metrics_snapshot import (
     CompanyMetricSnapshotCreateParams,
     CompanyMetricsSnapshot,
 )
+from enrichment.domain.exceptions.company_reader_exceptions import (
+    ReaderEncodingError,
+    ReaderInvalidFormatError,
+    ReaderValidationError,
+)
+from enrichment.domain.repositories.company_reader_port import CompanyReaderPort
 from enrichment.domain.vos.metrics import (
     MAU,
     Finance,
@@ -33,7 +33,7 @@ from enrichment.domain.vos.metrics import (
 from ..dtos.forest_of_hyuksin import ForestOfHyuksinCompanyData
 
 
-class ForestOfHyuksinReader(JSONDataReader):
+class ForestOfHyuksinReader(CompanyReaderPort):
     def read(self, file_path: Union[str, Path]) -> CompanyAggregate:
         file_path = Path(file_path)
 

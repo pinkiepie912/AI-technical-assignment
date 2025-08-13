@@ -7,10 +7,12 @@ from enrichment.application.exceptions.embedding_exception import (
     EmbeddingConnectionError,
     EmbeddingGenerationError,
 )
-from enrichment.application.interfaces.embedding_interface import EmbeddingClient
+from enrichment.application.ports.text_embedding_client_port import (
+    TextEmbeddingClientPort,
+)
 
 
-class OpenAIEmbedding(EmbeddingClient):
+class OpenAIEmbeddingClient(TextEmbeddingClientPort):
     """OpenAI implementation of the EmbeddingClient interface."""
 
     def __init__(self, api_key: str, model: str = "text-embedding-3-small"):

@@ -4,10 +4,10 @@ from typing import Union
 
 from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
 
-from ..exceptions.reader_exception import ReaderFileNotFoundError
+from ..exceptions.company_reader_exceptions import ReaderFileNotFoundError
 
 
-class JSONDataReader(ABC):
+class CompanyReaderPort(ABC):
     @abstractmethod
     def read(self, file_path: Union[str, Path]) -> CompanyAggregate:
         pass

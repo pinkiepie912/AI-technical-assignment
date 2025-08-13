@@ -1,12 +1,12 @@
 from pathlib import Path
 
 from enrichment.application.dtos.file_process import FileProcessResult
-from enrichment.application.interfaces.reader_interface import JSONDataReader
+from enrichment.domain.repositories.company_reader_port import CompanyReaderPort
 from enrichment.infrastructure.repositories.company_repository import CompanyRepository
 
 
 class CompanyInfoWriter:
-    def __init__(self, reader: JSONDataReader, repository: CompanyRepository):
+    def __init__(self, reader: CompanyReaderPort, repository: CompanyRepository):
         self.reader = reader
         self.repository = repository
 

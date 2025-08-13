@@ -4,20 +4,28 @@ import re
 from datetime import date
 from typing import List
 
-from enrichment.application.services.company_info_reader import CompanyInfoReader
-from inference.application.dtos.infer import GetCompaniesParam
-from inference.application.interfaces.llm import LlmClient
+from inference.application.ports.llm_port import LlmClientPort
+from inference.application.templates.inference_template import (
+    TalentInferencePromptTemplates,
+)
 from inference.controllers.dtos.talent_infer import (
     Position,
     TalentProfile,
 )
+from inference.domain.ports.company_context_search_port import (
+    CompanyContextSearchPort,
+    CompanySearchContextParam,
+)
 from inference.domain.vos.openai_models import LLMModel
-from inference.infrastructure.llm.templates import TalentInferencePromptTemplates
 
 
 class TalentInference:
-    def __init__(self, company_info_reader: CompanyInfoReader, llm_client: LlmClient):
-        self.company_info_reader = company_info_reader
+    def __init__(
+        self,
+        company_context_search: CompanyContextSearchPort,
+        llm_client: LlmClientPort,
+    ):
+        self.company_context_search = company_context_search
         self.llm_client = llm_client
 
     async def inference(self, talent_profile: TalentProfile):
@@ -31,19 +39,12 @@ class TalentInference:
             str: LLM 추론 응답 (경험/능력 태그 형태)
         """
         # 1. 경력 사항에서 회사별 재직 기간 추출
-        company_params: List[GetCompaniesParam] = []
+        company_params: List[CompanySearchContextParam] = []
         for position in talent_profile.positions:
             company_params.append(self._extract_company_params(position))
 
         # 2. 회사 정보 조회
-        company_aggregates = await self.company_info_reader.get_company_info(
-            company_params
-        )
-
-        # 3. 각 회사별로 재직 기간 정보와 함께 메트릭 요약 생성
-        company_summaries = [
-            aggregate.get_summary() for aggregate in company_aggregates
-        ]
+        company_contexts = await self.company_context_search.search(company_params)
 
         # 4. RichPromptTemplate을 사용하여 컨텍스트 생성
         template = (
@@ -52,7 +53,7 @@ class TalentInference:
 
         # 프롬프트 포맷팅 (Jinja2 템플릿에 객체 직접 전달)
         formatted_prompt = template.format(
-            talent_profile=talent_profile, company_summaries=company_summaries
+            talent_profile=talent_profile, company_summaries=company_contexts
         )
 
         # 5. LLM API 호출하여 경험 태그 추론
@@ -79,7 +80,7 @@ class TalentInference:
         except Exception as e:
             return {"inference_result": "추론을 실패했습니다.", "error": str(e)}
 
-    def _extract_company_params(self, position: Position) -> GetCompaniesParam:
+    def _extract_company_params(self, position: Position) -> CompanySearchContextParam:
         # 재직 기간 추출
 
         date_range = position.startEndDate
@@ -92,7 +93,7 @@ class TalentInference:
         else:
             end_date = None
 
-        return GetCompaniesParam(
+        return CompanySearchContextParam(
             alias=position.companyName,
             start_date=start_date,
             end_date=end_date,

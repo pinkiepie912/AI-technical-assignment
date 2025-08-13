@@ -1,19 +1,37 @@
 from typing import List
 
+from enrichment.application.ports.company_search_service_port import (
+    CompanySearchParam,
+    CompanySearchServicePort,
+)
+from enrichment.application.ports.text_embedding_client_port import (
+    TextEmbeddingClientPort,
+)
 from enrichment.domain.aggregates.company_aggregate import CompanyAggregate
-from enrichment.infrastructure.repositories.company_repository import CompanyRepository
-from inference.application.dtos.infer import GetCompaniesParam
+from enrichment.domain.repositories.company_repository_port import CompanyRepositoryPort
+from enrichment.domain.specs.company_spec import CompanySearchParam
 
 __all__ = ["CompanyInfoReader"]
 
 
-class CompanyInfoReader:
-    def __init__(self, repository: CompanyRepository):
+class CompanyInfoReader(CompanySearchServicePort):
+    def __init__(
+        self,
+        repository: CompanyRepositoryPort,
+        embedding_client=TextEmbeddingClientPort,
+    ):
         self.repository = repository
 
-    async def get_company_info(
+    async def get_companies(
         self,
-        params: List[GetCompaniesParam],
+        params: List[CompanySearchParam],
     ) -> List[CompanyAggregate]:
-        aggregate = await self.repository.get_companies(params)
-        return aggregate
+        companies = await self.repository.get_companies(
+            [
+                CompanySearchParam(
+                    alias=row.alias, start_date=row.start_date, end_date=row.end_date
+                )
+                for row in params
+            ]
+        )
+        return companies

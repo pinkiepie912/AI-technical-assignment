@@ -78,7 +78,7 @@ class CompanyContextSearchAdapter(CompanyContextSearchPort):
         )
 
         # 투자 정보 (총 투자 금액 및 투자자 목록)
-        investment_amount, investors = info.calculate_investment_metrics()
+        investment_amount, investors, levels = info.calculate_investment_metrics()
 
         # 특허 정보
         patents = info.calculate_patent_metrics()
@@ -95,6 +95,7 @@ class CompanyContextSearchAdapter(CompanyContextSearchPort):
             net_profit_growth_rate=net_profit_growth_rate,
             investment_amount=investment_amount,
             investors=investors,
+            levels=levels,
             patents=[PatentSummary(level=row[0], title=row[1]) for row in patents],
             maus=[
                 MAUSummary(product_name=row[0], value=row[1], growth_rate=row[2])
@@ -113,6 +114,7 @@ class CompanyContextSearchAdapter(CompanyContextSearchPort):
             net_profit_growth_rate=0.0,
             investment_amount=0,
             investors=[],
+            levels=[],
             patents=[],
             maus=[],
         )

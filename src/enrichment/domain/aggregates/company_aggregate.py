@@ -102,18 +102,20 @@ class CompanyAggregate:
             net_profit_growth_rate,
         )
 
-    def calculate_investment_metrics(self) -> Tuple[int, List[str]]:
+    def calculate_investment_metrics(self) -> Tuple[int, List[str], List[str]]:
         """투자 메트릭 계산: 총 투자 금액과 투자자 목록"""
         total_investment_amount = 0
         all_investors = set()
+        levels = []
 
         # 모든 스냅샷의 투자 데이터를 순회하여 집계
         for snapshot in self.company_metrics_snapshots:
             for investment in snapshot.metrics.investments:
                 total_investment_amount += investment.amount
                 all_investors.update(investment.investors)
+                levels.append(investment.level)
 
-        return total_investment_amount, list(all_investors)
+        return total_investment_amount, list(all_investors), list(levels)
 
     def calculate_patent_metrics(self) -> List[Tuple[str, str]]:
         """특허 메트릭 계산: 모든 특허 목록"""

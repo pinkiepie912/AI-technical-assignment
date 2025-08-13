@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date
-from typing import Dict, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -34,6 +34,4 @@ class NewsChunkByCompany(BaseModel):
 
 class NewsSearchPort(ABC):
     @abstractmethod
-    async def search(
-        self, param: NewsSearchRequest
-    ) -> Dict[UUID, NewsChunkByCompany]: ...
+    async def search(self, param: NewsSearchRequest) -> List[NewsChunkByCompany]: ...

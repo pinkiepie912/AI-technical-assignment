@@ -1,18 +1,21 @@
 from dependency_injector import containers, providers
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from db.db import ReadSessionManager, WriteSessionManager
+from db.db import ReadSessionManager, WriteSessionManager, engine_with_pgvector
 from enrichment.application.services.company_info_reader import CompanyInfoReader
 from enrichment.application.services.company_info_writer import CompanyInfoWriter
+from enrichment.application.services.news_reader import NewsReader
 from enrichment.infrastructure.embeddings.openai import OpenAIEmbeddingClient
 from enrichment.infrastructure.readers.forest_of_hyuksin_reader import (
     ForestOfHyuksinReader,
 )
 from enrichment.infrastructure.repositories.company_repository import CompanyRepository
+from enrichment.infrastructure.repositories.news_repository import NewsRepository
 from inference.application.services.talent_infer import TalentInference
 from inference.infrastructure.adapters.company_search_adapter import (
     CompanyContextSearchAdapter,
 )
+from inference.infrastructure.adapters.news_search_adapter import NewsSearchAdapter
 from inference.infrastructure.adapters.openai_adapter import OpenAIClient
 
 __all__ = ["Container"]
@@ -23,7 +26,7 @@ class Container(containers.DeclarativeContainer):
 
     # SqlAlchemy
     _write_db_engine = providers.Resource(
-        create_async_engine,
+        engine_with_pgvector,
         url=providers.Callable(
             "{engine}://{user}:{password}@{url}:{port}/{name}".format,
             engine=config.DATABASE.WRITE_ENGINE,
@@ -43,7 +46,7 @@ class Container(containers.DeclarativeContainer):
     )
 
     _read_db_engine = providers.Resource(
-        create_async_engine,
+        engine_with_pgvector,
         url=providers.Callable(
             "{engine}://{user}:{password}@{url}:{port}/{name}".format,
             engine=config.DATABASE.READ_ENGINE,
@@ -79,6 +82,10 @@ class Container(containers.DeclarativeContainer):
         write_session_manager=write_session_manager,
         read_session_manager=read_session_manager,
     )
+    news_respository = providers.Factory(
+        NewsRepository,
+        session_manager=read_session_manager,
+    )
 
     # # Readers
     forest_hyucksin_reader = providers.Factory(
@@ -109,7 +116,12 @@ class Container(containers.DeclarativeContainer):
     company_info_reader = providers.Factory(
         CompanyInfoReader,
         repository=company_repository,
+    )
+
+    news_reader = providers.Factory(
+        NewsReader,
         embedding_client=openai_embedding_client,
+        news_repository=news_respository,
     )
 
     # Inference
@@ -120,14 +132,18 @@ class Container(containers.DeclarativeContainer):
     )
 
     # adapters
-    company_context_search = providers.Factory(
+    company_search_adapter = providers.Factory(
         CompanyContextSearchAdapter,
         company_search_service=company_info_reader,
+    )
+    news_search_adapter = providers.Factory(
+        NewsSearchAdapter, news_search_service=news_reader
     )
 
     # services
     talent_inference_service = providers.Factory(
         TalentInference,
-        company_context_search=company_context_search,
+        company_search_adapter=company_search_adapter,
+        news_search_adapter=news_search_adapter,
         llm_client=openai_client,
     )

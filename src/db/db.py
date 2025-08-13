@@ -1,13 +1,29 @@
+from contextlib import asynccontextmanager
 from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from pgvector.asyncpg import register_vector
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 __all__ = [
     "ReadSessionManager",
     "WriteSessionManager",
     "WriteSessionSyncManager",
+    "engine_with_pgvector",
 ]
+
+
+@asynccontextmanager
+async def engine_with_pgvector(**kw):
+    engine = create_async_engine(**kw)
+    # 최초 연결에서 코덱 등록
+    async with engine.connect() as conn:
+        raw = await conn.get_raw_connection()
+        await register_vector(raw.driver_connection)
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
 
 
 class ReadSessionManager:

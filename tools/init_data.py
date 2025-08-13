@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from glob import glob
 from typing import List
 
 import psycopg2
@@ -12,9 +13,8 @@ from llama_index.core.node_parser import SentenceSplitter
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 from tools.embedding import create_embeddings
+from tools.insert_company_data import save_companies
 from tools.scrap_news import scrap_news
-
-from .insert_company_data import save_companies
 
 load_dotenv(find_dotenv(), override=True)
 
@@ -188,11 +188,35 @@ def insert_news_data(conn, news_data, company_map):
         return 0
 
 
+def merge_news_data():
+    file_list = sorted(glob("./example_datas/vectors/news_vector_*.csv"))
+
+    merged_data = []
+    for file in file_list:
+        with open(file, "r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                merged_data.append(row)
+    if not merged_data:
+        return
+
+    with open(
+        "./example_datas/company_news_with_vector.csv",
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as f:
+        writer = csv.DictWriter(f, fieldnames=merged_data[0].keys())
+        writer.writeheader()
+        writer.writerows(merged_data)
+
+
 async def main():
     """메인 함수"""
 
     # Insert company data api call
     await save_companies()
+    merge_news_data()
 
     try:
         # 데이터베이스 연결

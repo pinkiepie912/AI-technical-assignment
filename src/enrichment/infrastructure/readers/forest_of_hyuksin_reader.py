@@ -125,6 +125,7 @@ class ForestOfHyuksinReader(CompanyReaderPort):
         # Add company names
         if data.base_company_info.data.seedCorp.corpNameKr:
             aliases.add(data.base_company_info.data.seedCorp.corpNameKr)
+            aliases.add(f"(주){data.base_company_info.data.seedCorp.corpNameKr}")
         if data.base_company_info.data.seedCorp.corpNameEn:
             aliases.add(data.base_company_info.data.seedCorp.corpNameEn)
 

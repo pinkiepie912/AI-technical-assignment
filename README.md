@@ -74,7 +74,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 docker-compose up -d postgres
 
 # 데이터베이스 마이그레이션
-alembic upgrade head
+alembic upgrade heads
 
 # 셈플 데이터
 python -m tools.init_data
@@ -83,7 +83,7 @@ python -m tools.init_data
 docker-compose up -d
 ```
 
-## 📡 API 사용법
+## 📡 API
 
 ### 메인 API 엔드포인트
 
@@ -135,19 +135,19 @@ GET /health
 ```json
 {
   "experience_tags": [
-    "성장기스타트업 경험",
+    "성장기스타트업경험",
     "리더십",
-    "핀테크 도메인 경험"
+    "핀테크도메인경험"
   ],
   "competency_tags": [
-    "백엔드 개발",
-    "결제 시스템",
-    "대규모 서비스"
+    "백엔드개발",
+    "결제시스템",
+    "대규모서비스"
   ],
   "inferences": [
-    {"tag": "성장기스타트업경험", "inference": "},
-    {"tag": "성장기스타트업경험", "inference": "},
-    {"tag": "성장기스타트업경험", "inference": "},
+    {"tag": "성장기스타트업경험", "inference": ""},
+    {"tag": "리더십", "inference": ""},
+    {"tag": "핀테크도메인경험", "inference": ""},
   ]
 }
 ```
@@ -221,6 +221,124 @@ flowchart TD
     D --> E[상위 N개 결과 반환]
     E --> F[컨텍스트 집계]
 ```
+
+## 🗄️ 데이터베이스 스키마
+
+### 테이블 구조
+
+#### 1. `companies` - 회사 정보 메인 테이블
+회사의 기본 정보를 저장하는 메인 테이블로, Forest of Hyuksin의 JSON 데이터를 파싱하여 저장됩니다.
+
+| 컬럼명 | 타입 | 설명 | 제약조건 |
+|--------|------|------|----------|
+| `id` | UUID | 회사 고유 식별자 | Primary Key |
+| `external_id` | String(16) | 외부 시스템 회사 ID | Unique, Not Null, Index |
+| `name` | String(64) | 회사명(한국어) | Index |
+| `name_en` | String(64) | 회사명(영어) | Index |
+| `biz_categories` | ARRAY[String] | 사업 카테고리 목록 | Default: [] |
+| `biz_tags` | ARRAY[String] | 비즈니스 태그 목록 | Default: [] |
+| `biz_description` | String(255) | 사업 설명/소개 | |
+| `stage` | String(32) | 투자 단계 (Series A/B 등) | |
+| `founded_date` | Date | 창립일 | |
+| `employee_count` | Integer | 직원 수 | Default: 0 |
+| `ipo_date` | DateTime | IPO 날짜 (상장일) | Nullable |
+| `total_investment` | BigInteger | 총 투자 금액 | Default: 0 |
+| `origin_file_path` | String(255) | 원본 데이터 파일 경로 | |
+
+#### 2. `company_aliases` - 회사 별칭 테이블
+회사명, 제품명 등 회사를 식별할 수 있는 다양한 이름들을 저장합니다.
+
+| 컬럼명 | 타입 | 설명 | 제약조건 |
+|--------|------|------|----------|
+| `id` | Integer | 별칭 ID | Primary Key, Auto Increment |
+| `company_id` | UUID | 회사 ID (외래키) | Foreign Key, Index |
+| `alias` | String(100) | 별칭 이름 | Index |
+| `alias_type` | String(20) | 별칭 타입 (name, product 등) | Not Null, Index |
+
+#### 3. `company_metrics_snapshots` - 회사 메트릭 스냅샷 테이블
+회사의 시계열 데이터를 월별로 저장하는 테이블입니다.
+
+| 컬럼명 | 타입 | 설명 | 제약조건 |
+|--------|------|------|----------|
+| `id` | BigInteger | 스냅샷 ID | Primary Key, Auto Increment |
+| `company_id` | UUID | 회사 ID (외래키) | Foreign Key, Index |
+| `reference_date` | Date | 기준 날짜 (매월 1일) | Index |
+| `metrics` | JSONB | 메트릭 데이터 (MonthlyMetrics) | Default: {} |
+
+**인덱스**: `idx_company_date` (company_id, reference_date)
+
+#### 4. `news_chunks` - 뉴스 청크 테이블
+뉴스 기사를 청크 단위로 분할하여 벡터 임베딩과 함께 저장합니다.
+
+| 컬럼명 | 타입 | 설명 | 제약조건 |
+|--------|------|------|----------|
+| `id` | BigInteger | 청크 ID | Primary Key, Auto Increment |
+| `company_id` | UUID | 회사 ID (외래키) | Foreign Key, Index |
+| `title` | String(500) | 뉴스 제목 | Not Null, Index |
+| `contents` | Text | 청크 내용 | Not Null |
+| `vector` | Vector(1536) | 벡터 임베딩 (text-embedding-3-small) | Not Null |
+| `link` | String(500) | 원본 뉴스 링크 | Not Null, Index |
+| `created_at` | Date | 뉴스 생성 날짜 | Not Null, Index |
+
+**인덱스**:
+- `idx_chunk_hnsw`: HNSW 벡터 검색 인덱스 (cosine 거리 기준)
+- `idx_news_chunk_created_at_company_id`: created_at, company_id 복합 인덱스
+
+### 테이블 관계도
+
+```mermaid
+erDiagram
+    companies ||--o{ company_aliases : "has"
+    companies ||--o{ company_metrics_snapshots : "has"
+    companies ||--o{ news_chunks : "has"
+    
+    companies {
+        UUID id PK
+        string external_id UK
+        string name
+        string name_en
+        array biz_categories
+        array biz_tags
+        string biz_description
+        string stage
+        date founded_date
+        integer employee_count
+        datetime ipo_date
+        biginteger total_investment
+        string origin_file_path
+    }
+    
+    company_aliases {
+        integer id PK
+        UUID company_id FK
+        string alias
+        string alias_type
+    }
+    
+    company_metrics_snapshots {
+        biginteger id PK
+        UUID company_id FK
+        date reference_date
+        jsonb metrics
+    }
+    
+    news_chunks {
+        biginteger id PK
+        UUID company_id FK
+        string title
+        text contents
+        vector vector
+        string link
+        date created_at
+    }
+```
+
+### 벡터 검색 최적화
+
+- **pgvector 확장**: PostgreSQL에서 벡터 유사도 검색 지원
+- **HNSW 인덱스**: 높은 성능의 근사 최근접 이웃 검색
+- **1536차원 임베딩**: OpenAI text-embedding-3-small 모델 사용
+- **코사인 유사도**: 벡터 간 유사도 계산 방식
 
 ## 🧪 테스트
 

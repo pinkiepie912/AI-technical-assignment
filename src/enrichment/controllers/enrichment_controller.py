@@ -22,7 +22,7 @@ router = APIRouter(
 
 
 @router.post(
-    "/data-sources/process",
+    "/data-sources",
     response_model=FileProcessResponse,
     status_code=status.HTTP_201_CREATED,
     summary="데이터 소스 파일 처리 및 저장",

@@ -24,7 +24,7 @@ router = APIRouter(
 
 
 @router.post(
-    "/talent-profiles/analyze",
+    "/talent-profile-analyses",
     status_code=status.HTTP_200_OK,
     summary="인재 프로필 분석 및 추론",
     description="업로드된 JSON 파일의 인재 정보를 분석하여 경험 태그를 추론합니다.",

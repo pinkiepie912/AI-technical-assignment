@@ -1,3 +1,4 @@
+import redis.asyncio as redis
 from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -17,6 +18,7 @@ from inference.infrastructure.adapters.company_search_adapter import (
 )
 from inference.infrastructure.adapters.news_search_adapter import NewsSearchAdapter
 from inference.infrastructure.adapters.openai_adapter import OpenAIClient
+from shared.cache.redis_cache_adapter import RedisCacheAdapter
 
 __all__ = ["Container"]
 
@@ -131,6 +133,20 @@ class Container(containers.DeclarativeContainer):
         api_key=config.OPENAI.API_KEY,
     )
 
+    # Redis client
+    redis_client = providers.Singleton(
+        redis.Redis,
+        host=config.REDIS.HOST,
+        port=config.REDIS.PORT,
+        db=config.REDIS.DB,
+    )
+
+    # Cache adapter
+    redis_cache_adapter = providers.Factory(
+        RedisCacheAdapter,
+        redis_client=redis_client,
+    )
+
     # adapters
     company_search_adapter = providers.Factory(
         CompanyContextSearchAdapter,
@@ -146,4 +162,5 @@ class Container(containers.DeclarativeContainer):
         company_search_adapter=company_search_adapter,
         news_search_adapter=news_search_adapter,
         llm_client=openai_client,
+        cache_adapter=redis_cache_adapter,
     )

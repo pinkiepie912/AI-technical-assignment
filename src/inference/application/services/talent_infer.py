@@ -1,4 +1,5 @@
 import calendar
+import hashlib
 import json
 import re
 from datetime import date
@@ -28,6 +29,7 @@ from inference.domain.services.position_context_aggregator import (
     PositionContextAggregator,
 )
 from inference.domain.vos.openai_models import LLMModel
+from shared.cache.cache_port import CachePort
 
 
 class TalentInference:
@@ -36,25 +38,47 @@ class TalentInference:
         company_search_adapter: CompanyContextSearchPort,
         news_search_adapter: NewsSearchPort,
         llm_client: LlmClientPort,
+        cache_adapter: CachePort,
     ):
         self.company_search_adapter = company_search_adapter
         self.news_search_adapter = news_search_adapter
         self.llm_client = llm_client
+        self.cache_adapter = cache_adapter
 
     async def inference(self, talent_profile: TalentProfile):
         """
         인재 프로필에서 경력 정보를 추출하여 LLM으로 추론된 경험과 능력 태그 반환
 
-        새로운 구조에서는 PositionContextAggregator를 사용하여
-        Position별로 관련 정보를 그룹핑하고, TalentCareerJourney로 관리합니다.
+        Args:
+            talent_profile: 원본 인재 프로필 데이터
+
+        Returns:
+            dict: LLM 추론 응답 (경험/능력 태그 형태)
+        """
+        cache_key = self._generate_cache_key(talent_profile)
+
+        cached_result = await self.cache_adapter.get(cache_key)
+        if cached_result:
+            return cached_result
+
+        # inference 수행
+        result = await self._perform_inference(talent_profile)
+
+        # cache
+        await self.cache_adapter.set(cache_key, result, ttl=60 * 60)
+
+        return result
+
+    async def _perform_inference(self, talent_profile: TalentProfile) -> dict:
+        """
+        추론 로직 수행
 
         Args:
             talent_profile: 원본 인재 프로필 데이터
 
         Returns:
-            str: LLM 추론 응답 (경험/능력 태그 형태)
+            dict: LLM 추론 결과
         """
-
         # 1. 경력 사항에서 회사별 재직 기간 추출
         company_params = self._extract_company_params(talent_profile)
 
@@ -73,10 +97,10 @@ class TalentInference:
             news_by_companies=news_by_companies,
         )
 
-        # 6. Position 순서 기반 구조화된 프롬프트 생성
+        # 5. Position 순서 기반 구조화된 프롬프트 생성
         formatted_prompt = self._create_structured_prompt(career_journey)
 
-        # 7. LLM API 호출하여 경험 태그 추론
+        # 6. LLM API 호출하여 경험 태그 추론
         return await self._execute_llm_inference(formatted_prompt)
 
     def _extract_company_params(
@@ -244,3 +268,54 @@ class TalentInference:
             end_date = None
 
         return start_date, end_date
+
+    def _generate_cache_key(self, talent_profile: TalentProfile) -> str:
+        """
+        TalentProfile을 기반으로 캐시 키 생성
+
+        Args:
+            talent_profile: 인재 프로필
+
+        Returns:
+            str: 생성된 캐시 키
+        """
+
+        position_data = []
+
+        for position in talent_profile.positions:
+            normalized_date = {
+                "start": {
+                    "year": position.startEndDate.start.year,
+                    "month": position.startEndDate.start.month,
+                },
+                "end": (
+                    {
+                        "year": position.startEndDate.end.year,
+                        "month": position.startEndDate.end.month,
+                    }
+                    if position.startEndDate.end
+                    else None
+                ),
+            }
+
+            position_data.append(
+                {
+                    "companyName": position.companyName.strip().lower(),
+                    "title": position.title.strip().lower(),
+                    "description": position.description.strip().lower(),
+                    "startEndDate": normalized_date,
+                }
+            )
+
+        # Position 데이터를 시작일 기준으로 정렬하여 일관성 보장
+        position_data.sort(
+            key=lambda p: (
+                p["startEndDate"]["start"]["year"],
+                p["startEndDate"]["start"]["month"] or 1,
+            )
+        )
+
+        position_json = json.dumps(position_data, ensure_ascii=False, sort_keys=True)
+        hash_object = hashlib.sha256(position_json.encode("utf-8"))
+
+        return f"talent_inference:{hash_object.hexdigest()}"

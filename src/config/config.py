@@ -33,10 +33,19 @@ class DatabaseConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DB_")
 
 
+class RedisConfig(BaseSettings):
+    HOST: str = Field(default="localhost")
+    PORT: int = Field(default=6379)
+    DB: int = Field(default=0)
+
+    model_config = SettingsConfigDict(env_prefix="REDIS_")
+
+
 class Config(BaseSettings):
     APP_ENV: str = Field(default="dev")
 
     OPENAI: OpenAIConfig = Field(default_factory=OpenAIConfig)
     DATABASE: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    REDIS: RedisConfig = Field(default_factory=RedisConfig)
 
     model_config = SettingsConfigDict(case_sensitive=True)

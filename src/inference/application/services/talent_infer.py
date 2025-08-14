@@ -45,7 +45,7 @@ class TalentInference:
         self.llm_client = llm_client
         self.cache_adapter = cache_adapter
 
-    async def inference(self, talent_profile: TalentProfile):
+    async def inference(self, talent_profile: TalentProfile) -> dict:
         """
         인재 프로필에서 경력 정보를 추출하여 LLM으로 추론된 경험과 능력 태그 반환
 
@@ -57,7 +57,7 @@ class TalentInference:
         """
         cache_key = self._generate_cache_key(talent_profile)
 
-        # 캐시 조회 (실패 시 무시하고 추론 수행)
+        # 캐시 조회
         try:
             cached_result = await self.cache_adapter.get(cache_key)
             if cached_result:
@@ -69,7 +69,7 @@ class TalentInference:
         # inference 수행
         result = await self._perform_inference(talent_profile)
 
-        # 캐시 저장 (실패 시 무시하고 결과 반환)
+        # 캐시 저장
         try:
             await self.cache_adapter.set(cache_key, result, ttl=60 * 60)
         except Exception:

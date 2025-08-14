@@ -75,7 +75,7 @@ async def analyze_talent_profile(
         # 인재 정보 추론 실행
         inference_result = await talent_inference_service.inference(talent_profile)
 
-        return inference_result
+        return TalentInferResponse(**inference_result)
 
     except (FileProcessingError, ValidationError):
         # 사용자 입력 관련 에러는 그대로 재발생

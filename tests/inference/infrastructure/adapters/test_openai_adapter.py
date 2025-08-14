@@ -56,7 +56,7 @@ class TestOpenAIClient:
             model=model.value,
             messages=[{"role": "user", "content": expected_prompt}],
             temperature=0.1,
-            max_tokens=500,
+            max_completion_tokens=1000,
             top_p=1.0,
             frequency_penalty=0,
             presence_penalty=0,

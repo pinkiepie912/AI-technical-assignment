@@ -16,6 +16,7 @@ from inference.domain.aggregates.talent_career_journey import TalentCareerJourne
 from inference.domain.entities.company import Company
 from inference.domain.entities.company_metrics import MetricsSummary
 from inference.domain.entities.news_chunk import NewsChunk
+from shared.cache.cache_port import CachePort
 from inference.domain.repositories.news_search_port import (
     NewsChunkByCompany,
 )
@@ -37,13 +38,33 @@ class TestTalentInference:
         return AsyncMock()
 
     @pytest.fixture
+    def mock_cache_adapter(self):
+        mock = AsyncMock(spec=CachePort)
+        # 기본적으로 캐시 미스로 설정 (None 반환)
+        mock.get.return_value = None
+        mock.set.return_value = True
+        return mock
+
+    @pytest.fixture
     def talent_inference_service(
-        self, mock_company_search_adapter, mock_news_search_adapter, mock_llm_client
+        self, mock_company_search_adapter, mock_news_search_adapter, mock_llm_client, mock_cache_adapter
     ):
         return TalentInference(
             company_search_adapter=mock_company_search_adapter,
             news_search_adapter=mock_news_search_adapter,
             llm_client=mock_llm_client,
+            cache_adapter=mock_cache_adapter,
+        )
+
+    @pytest.fixture
+    def talent_inference_service_with_cache(
+        self, mock_company_search_adapter, mock_news_search_adapter, mock_llm_client, mock_cache_adapter
+    ):
+        return TalentInference(
+            company_search_adapter=mock_company_search_adapter,
+            news_search_adapter=mock_news_search_adapter,
+            llm_client=mock_llm_client,
+            cache_adapter=mock_cache_adapter,
         )
 
     @pytest.fixture
@@ -571,3 +592,262 @@ class TestTalentInference:
         # Assert
         assert start_date == date(2020, 1, 1)
         assert end_date is None
+
+    @pytest.mark.asyncio
+    async def test_inference_cache_hit(
+        self, talent_inference_service_with_cache, sample_talent_profile, mock_cache_adapter,
+        mock_company_search_adapter, mock_news_search_adapter, mock_llm_client
+    ):
+        """캐시 히트 시 캐시된 결과 반환 테스트"""
+        # Given
+        cached_result = {"inference_result": "cached_tags", "tags": ["tag1", "tag2"]}
+        mock_cache_adapter.get.return_value = cached_result
+
+        # When
+        result = await talent_inference_service_with_cache.inference(sample_talent_profile)
+
+        # Then
+        assert result == cached_result
+        mock_cache_adapter.get.assert_called_once()
+        # 캐시 히트이므로 실제 추론 로직은 호출되지 않아야 함
+        mock_company_search_adapter.search.assert_not_called()
+        mock_news_search_adapter.search.assert_not_called()
+        mock_llm_client.answer.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_inference_cache_miss_then_cache_save(
+        self, talent_inference_service_with_cache, sample_talent_profile, mock_cache_adapter,
+        mock_company_search_adapter, mock_news_search_adapter, mock_llm_client
+    ):
+        """캐시 미스 시 실제 추론 수행 후 결과 캐싱 테스트"""
+        # Given
+        mock_cache_adapter.get.return_value = None  # 캐시 미스
+        mock_cache_adapter.set.return_value = True  # 캐시 저장 성공
+
+        # Mock 컨텍스트 데이터 설정
+        company_uuid = UUID("12345678-1234-5678-9abc-123456789abc")
+        company = Company(
+            id=company_uuid,
+            name="Company A",
+            name_en="Company A",
+            industry=["Technology"],
+            tags=["startup"],
+            stage="Series A",
+            business_description="Tech company",
+            founded_date=None,
+            ipo_date=None,
+            aliases=["Company A", "CompanyA"],
+        )
+        
+        company_context = CompanyContext(
+            company=company,
+            metrics=MetricsSummary(
+                people_count=100,
+                people_growth_rate=0.1,
+                profit=1000000,
+                net_profit=500000,
+                profit_growth_rate=0.2,
+                net_profit_growth_rate=0.15,
+                investment_amount=5000000,
+                investors=["Investor A"],
+                levels=["Series A"],
+                patents=[],
+                maus=[],
+            ),
+        )
+        
+        mock_company_search_adapter.search.return_value = [company_context]
+        mock_news_search_adapter.search.return_value = [
+            NewsChunkByCompany(company_id=company_uuid, news_chunks=[])
+        ]
+        
+        inference_result = {"inference_result": "new_tags", "tags": ["tag3", "tag4"]}
+        mock_llm_client.answer.return_value = '```json\n{"inference_result": "new_tags", "tags": ["tag3", "tag4"]}\n```'
+
+        # When
+        result = await talent_inference_service_with_cache.inference(sample_talent_profile)
+
+        # Then
+        assert result == inference_result
+        mock_cache_adapter.get.assert_called_once()
+        mock_cache_adapter.set.assert_called_once()
+        # 실제 추론 로직이 호출되어야 함
+        mock_company_search_adapter.search.assert_called_once()
+        mock_news_search_adapter.search.assert_called_once()
+        mock_llm_client.answer.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_inference_cache_get_error_fallback(
+        self, talent_inference_service_with_cache, sample_talent_profile, mock_cache_adapter,
+        mock_company_search_adapter, mock_news_search_adapter, mock_llm_client
+    ):
+        """캐시 조회 오류 시 실제 추론으로 fallback 테스트"""
+        # Given
+        mock_cache_adapter.get.side_effect = Exception("Redis connection failed")
+        mock_cache_adapter.set.return_value = True
+
+        # Mock 컨텍스트 데이터 설정
+        company_uuid = UUID("12345678-1234-5678-9abc-123456789abc")
+        company = Company(
+            id=company_uuid,
+            name="Company A",
+            name_en="Company A",
+            industry=["Technology"],
+            tags=["startup"],
+            stage="Series A",
+            business_description="Tech company",
+            founded_date=None,
+            ipo_date=None,
+            aliases=["Company A", "CompanyA"],
+        )
+        
+        company_context = CompanyContext(
+            company=company,
+            metrics=MetricsSummary(
+                people_count=100,
+                people_growth_rate=0.1,
+                profit=1000000,
+                net_profit=500000,
+                profit_growth_rate=0.2,
+                net_profit_growth_rate=0.15,
+                investment_amount=5000000,
+                investors=["Investor A"],
+                levels=["Series A"],
+                patents=[],
+                maus=[],
+            ),
+        )
+        
+        mock_company_search_adapter.search.return_value = [company_context]
+        mock_news_search_adapter.search.return_value = [
+            NewsChunkByCompany(company_id=company_uuid, news_chunks=[])
+        ]
+        
+        inference_result = {"inference_result": "fallback_tags", "tags": ["tag5", "tag6"]}
+        mock_llm_client.answer.return_value = '```json\n{"inference_result": "fallback_tags", "tags": ["tag5", "tag6"]}\n```'
+
+        # When
+        result = await talent_inference_service_with_cache.inference(sample_talent_profile)
+
+        # Then
+        assert result == inference_result
+        # 캐시 오류가 발생해도 실제 추론은 수행되어야 함
+        mock_company_search_adapter.search.assert_called_once()
+        mock_news_search_adapter.search.assert_called_once()
+        mock_llm_client.answer.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_inference_cache_set_error_still_returns_result(
+        self, talent_inference_service_with_cache, sample_talent_profile, mock_cache_adapter,
+        mock_company_search_adapter, mock_news_search_adapter, mock_llm_client
+    ):
+        """캐시 저장 오류 시에도 추론 결과는 정상 반환 테스트"""
+        # Given
+        mock_cache_adapter.get.return_value = None  # 캐시 미스
+        mock_cache_adapter.set.side_effect = Exception("Redis write failed")
+
+        # Mock 컨텍스트 데이터 설정
+        company_uuid = UUID("12345678-1234-5678-9abc-123456789abc")
+        company = Company(
+            id=company_uuid,
+            name="Company A",
+            name_en="Company A",
+            industry=["Technology"],
+            tags=["startup"],
+            stage="Series A",
+            business_description="Tech company",
+            founded_date=None,
+            ipo_date=None,
+            aliases=["Company A", "CompanyA"],
+        )
+        
+        company_context = CompanyContext(
+            company=company,
+            metrics=MetricsSummary(
+                people_count=100,
+                people_growth_rate=0.1,
+                profit=1000000,
+                net_profit=500000,
+                profit_growth_rate=0.2,
+                net_profit_growth_rate=0.15,
+                investment_amount=5000000,
+                investors=["Investor A"],
+                levels=["Series A"],
+                patents=[],
+                maus=[],
+            ),
+        )
+        
+        mock_company_search_adapter.search.return_value = [company_context]
+        mock_news_search_adapter.search.return_value = [
+            NewsChunkByCompany(company_id=company_uuid, news_chunks=[])
+        ]
+        
+        inference_result = {"inference_result": "result_despite_cache_error", "tags": ["tag7", "tag8"]}
+        mock_llm_client.answer.return_value = '```json\n{"inference_result": "result_despite_cache_error", "tags": ["tag7", "tag8"]}\n```'
+
+        # When
+        result = await talent_inference_service_with_cache.inference(sample_talent_profile)
+
+        # Then
+        assert result == inference_result
+        # 캐시 저장 실패에도 불구하고 추론 결과는 정상 반환되어야 함
+        mock_company_search_adapter.search.assert_called_once()
+        mock_news_search_adapter.search.assert_called_once()
+        mock_llm_client.answer.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_inference_without_cache_adapter(
+        self, talent_inference_service, sample_talent_profile,
+        mock_company_search_adapter, mock_news_search_adapter, mock_llm_client
+    ):
+        """캐시 어댑터가 없는 경우 정상 동작 테스트"""
+        # Given - talent_inference_service는 캐시 어댑터가 없음
+        company_uuid = UUID("12345678-1234-5678-9abc-123456789abc")
+        company = Company(
+            id=company_uuid,
+            name="Company A",
+            name_en="Company A",
+            industry=["Technology"],
+            tags=["startup"],
+            stage="Series A",
+            business_description="Tech company",
+            founded_date=None,
+            ipo_date=None,
+            aliases=["Company A", "CompanyA"],
+        )
+        
+        company_context = CompanyContext(
+            company=company,
+            metrics=MetricsSummary(
+                people_count=100,
+                people_growth_rate=0.1,
+                profit=1000000,
+                net_profit=500000,
+                profit_growth_rate=0.2,
+                net_profit_growth_rate=0.15,
+                investment_amount=5000000,
+                investors=["Investor A"],
+                levels=["Series A"],
+                patents=[],
+                maus=[],
+            ),
+        )
+        
+        mock_company_search_adapter.search.return_value = [company_context]
+        mock_news_search_adapter.search.return_value = [
+            NewsChunkByCompany(company_id=company_uuid, news_chunks=[])
+        ]
+        
+        inference_result = {"inference_result": "no_cache_tags", "tags": ["tag9", "tag10"]}
+        mock_llm_client.answer.return_value = '```json\n{"inference_result": "no_cache_tags", "tags": ["tag9", "tag10"]}\n```'
+
+        # When
+        result = await talent_inference_service.inference(sample_talent_profile)
+
+        # Then
+        assert result == inference_result
+        # 캐시 없이도 정상 동작해야 함
+        mock_company_search_adapter.search.assert_called_once()
+        mock_news_search_adapter.search.assert_called_once()
+        mock_llm_client.answer.assert_called_once()

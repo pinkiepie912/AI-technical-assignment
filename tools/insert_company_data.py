@@ -35,7 +35,7 @@ class ApiClient:
 
     async def process_file(self, file_path: str) -> FileProcessResponse:
         """Call the process_file API endpoint"""
-        url = f"{self.base_url}/api/v1/enrichments/files/process"
+        url = f"{self.base_url}/api/v1/enrichments/data-sources"
 
         request_data = FileProcessRequest(
             source=SourceType.FORESTOFHYUCKSIN, file_path=file_path
@@ -49,7 +49,7 @@ class ApiClient:
             headers={"Content-Type": "application/json"},
         )
 
-        if response.status_code == 200:
+        if response.status_code < 300:
             result = FileProcessResponse(**response.json())
             print(f"✅ Success: {result.message}")
             return result

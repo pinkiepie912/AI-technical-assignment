@@ -57,15 +57,24 @@ class TalentInference:
         """
         cache_key = self._generate_cache_key(talent_profile)
 
-        cached_result = await self.cache_adapter.get(cache_key)
-        if cached_result:
-            return cached_result
+        # 캐시 조회 (실패 시 무시하고 추론 수행)
+        try:
+            cached_result = await self.cache_adapter.get(cache_key)
+            if cached_result:
+                return cached_result
+        except Exception:
+            # 캐시 조회 실패 시 Sentry 등의 tool로 디버깅
+            pass
 
         # inference 수행
         result = await self._perform_inference(talent_profile)
 
-        # cache
-        await self.cache_adapter.set(cache_key, result, ttl=60 * 60)
+        # 캐시 저장 (실패 시 무시하고 결과 반환)
+        try:
+            await self.cache_adapter.set(cache_key, result, ttl=60 * 60)
+        except Exception:
+            # 캐시 저장 실패 시 Sentry 등의 tool로 디버깅
+            pass
 
         return result
 

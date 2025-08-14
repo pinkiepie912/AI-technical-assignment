@@ -31,16 +31,6 @@ router = APIRouter(
     
     **지원 데이터 소스**:
     - FORESTOFHYUCKSIN: 혁신의숲 플랫폼 데이터
-    
-    **처리 과정**:
-    1. 파일 경로 유효성 검증
-    2. 데이터 소스 타입별 파싱
-    3. 데이터베이스 저장
-    4. 처리 결과 반환
-    
-    **참고사항**:
-    - 파일 경로는 서버에서 접근 가능한 절대 경로여야 합니다
-    - 동일한 파일을 중복 처리하면 기존 데이터가 업데이트됩니다
     """,
     response_description="데이터 처리 완료 정보 및 상태",
 )
@@ -51,37 +41,19 @@ async def process_data_source_file(
 ) -> FileProcessResponse:
     """
     데이터 소스 파일을 처리하여 데이터베이스에 저장
-
-    지정된 경로의 파일을 읽어서 데이터 소스 타입에 맞게 파싱한 후,
-    데이터베이스에 저장합니다. 회사 정보, 뉴스 데이터 등을 처리할 수 있습니다.
-
-    Args:
-        body: 파일 처리 요청 정보
-            - source: 데이터 소스 타입 (FORESTOFHYUCKSIN)
-            - file_path: 처리할 파일의 절대 경로
-        request: FastAPI 요청 객체 (컨테이너 접근용)
-        company_info_writer: 회사 정보 작성 서비스 (의존성 주입)
-
-    Returns:
-        FileProcessResponse: 처리 결과 정보
-            - message: 처리 결과 메시지
-            - file_path: 처리된 파일 경로
-            - status: 처리 상태 (success/failed)
-
-    Raises:
-        ValidationError: 요청 데이터 유효성 검증 실패
-        ResourceNotFoundError: 파일을 찾을 수 없음
-        BusinessLogicError: 파일 처리 로직 오류
-        InternalServerError: 예상치 못한 서버 오류
     """
     try:
         # 파일 경로 유효성 검증
-        await _validate_file_path(body.file_path)
+        # await _validate_file_path(body.file_path)
 
         # 데이터 소스 설정
         container: Container = request.app.state.container
         container.reader_source_key.override(body.source.value)
-        company_info_writer = container.company_info_writer()
+
+        # container에서 사용하는 db.db.engine_with_pgvector의 async context manager로
+        # db 엔진을 생성하기 때문에, db engine을 주입받는 하위 객체들은 모두 async mode가 된다.
+        # Selector를 통해 Parameter로 reader를 선택하게 하기 위해서는 writer 객체를 await으로 가져와야 한다.
+        company_info_writer = await container.company_info_writer()  # type: ignore
 
         # 파일 처리 실행
         result = await company_info_writer.process_file(body.file_path)
@@ -142,13 +114,6 @@ async def _validate_file_path(file_path: str) -> None:
         raise ValidationError(
             detail="상위 디렉토리 접근은 허용되지 않습니다.",
             details={"provided_path": file_path, "normalized_path": normalized_path},
-        )
-
-    # 절대 경로 확인
-    if not os.path.isabs(file_path):
-        raise ValidationError(
-            detail="절대 경로만 허용됩니다.",
-            details={"provided_path": file_path, "is_absolute": False},
         )
 
     # 파일 존재 여부 확인
